@@ -141,3 +141,24 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Python
+**/__pycache__
+
+# macOS
+**/.DS_Store
+
+# IDE
+.vscode/
+.specstory/
+.serena/
+
+# CodingAgent
+.codex/
+.claude/
+.cursor/
+
+# Cursor
+.cursorrules
+.cursorignore
+.cursorindexingignore

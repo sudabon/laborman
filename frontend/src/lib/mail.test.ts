@@ -1,0 +1,78 @@
+import { describe, expect, it } from "vitest";
+
+import { buildMailDraft, buildMailtoUrl, hasRequiredRecipients, renderTemplate } from "./mail";
+import type { MailSettings, WorkReport } from "@/types";
+
+const settings: MailSettings = {
+  id: "default",
+  boss_email: "boss@example.com",
+  labor_ml_email: "labor@example.com",
+  cc_emails: "",
+  bcc_emails: "",
+  start_subject_template: "【始業報告】{{date}}",
+  start_body_template: "始業 {{start_time}} {{work_style}} {{note}}",
+  end_subject_template: "【終業報告】{{date}}",
+  end_header_template: "お疲れ様です。本日、終業しました。",
+  end_body_template: "勤務時間: {{work_duration}}\n勤務区分: {{work_style}}\nメモ: {{note}}",
+  end_footer_template: "よろしくお願いいたします。",
+  created_at: null,
+  updated_at: null,
+};
+
+const report: WorkReport = {
+  id: "report-1",
+  work_date: "2026-06-06",
+  start_time: "2026-06-06T00:00:00Z",
+  end_time: "2026-06-06T09:30:00Z",
+  start_mail_created_at: null,
+  end_mail_created_at: null,
+  note: "レビュー対応",
+  work_style: "remote",
+  end_mail_body: null,
+  created_at: null,
+  updated_at: null,
+  status: "end_recorded",
+  work_duration_minutes: 570,
+};
+
+describe("mail utilities", () => {
+  it("builds a mailto URL without cc and bcc when they are empty", () => {
+    const url = buildMailtoUrl({
+      to: ["boss@example.com", "labor@example.com"],
+      subject: "【始業報告】2026/06/06",
+      body: "始業しました",
+      cc: [],
+      bcc: [],
+    });
+
+    expect(url).toMatch(/^mailto:boss%40example\.com,labor%40example\.com\?/);
+    expect(url).toContain("subject=");
+    expect(url).toContain("body=");
+    expect(url).not.toContain("cc=");
+    expect(url).not.toContain("bcc=");
+  });
+
+  it("replaces template variables and expands work style labels", () => {
+    expect(renderTemplate("{{date}} {{work_style}}", { date: "2026/06/06", work_style: "リモート" })).toBe(
+      "2026/06/06 リモート",
+    );
+
+    const draft = buildMailDraft("start", settings, report);
+    expect(draft.subject).toBe("【始業報告】2026/06/06");
+    expect(draft.body).toContain("リモート");
+  });
+
+  it("builds end mail from header, body core, and footer while exposing body core for persistence", () => {
+    const draft = buildMailDraft("end", settings, report);
+
+    expect(draft.body).toContain("お疲れ様です。本日、終業しました。");
+    expect(draft.body).toContain("勤務区分: リモート");
+    expect(draft.body).toContain("よろしくお願いいたします。");
+    expect(draft.endBodyCore).toBe("勤務時間: 9時間30分\n勤務区分: リモート\nメモ: レビュー対応");
+  });
+
+  it("detects missing required recipients", () => {
+    expect(hasRequiredRecipients(settings)).toBe(true);
+    expect(hasRequiredRecipients({ boss_email: "", labor_ml_email: "labor@example.com" })).toBe(false);
+  });
+});
