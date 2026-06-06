@@ -52,6 +52,32 @@ describe("mail utilities", () => {
     expect(url).not.toContain("bcc=");
   });
 
+  it("encodes mailto subject and body spaces as percent escapes", () => {
+    const url = buildMailtoUrl({
+      to: ["boss@example.com"],
+      subject: "Start report",
+      body: "勤務時間: 9時間30分\n勤務区分: リモート",
+    });
+
+    expect(url).toContain("subject=Start%20report");
+    expect(url).toContain("%E5%8B%A4%E5%8B%99%E6%99%82%E9%96%93%3A%209%E6%99%82%E9%96%9330%E5%88%86");
+    expect(url).not.toContain("+");
+  });
+
+  it("keeps multiple cc and bcc recipients separated by literal commas", () => {
+    const url = buildMailtoUrl({
+      to: ["boss@example.com"],
+      cc: ["team-one@example.com", "team-two@example.com"],
+      bcc: ["audit-one@example.com", "audit-two@example.com"],
+      subject: "Daily report",
+      body: "Done",
+    });
+
+    expect(url).toContain("cc=team-one%40example.com,team-two%40example.com");
+    expect(url).toContain("bcc=audit-one%40example.com,audit-two%40example.com");
+    expect(url).not.toContain("%2C");
+  });
+
   it("replaces template variables and expands work style labels", () => {
     expect(renderTemplate("{{date}} {{work_style}}", { date: "2026/06/06", work_style: "リモート" })).toBe(
       "2026/06/06 リモート",

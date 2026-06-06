@@ -42,20 +42,20 @@ export function hasRequiredRecipients(settings: Pick<MailSettings, "boss_email" 
 
 export function buildMailtoUrl(params: MailtoParams): string {
   const to = params.to.map((email) => encodeURIComponent(email)).join(",");
-  const query = new URLSearchParams();
+  const query: string[] = [];
 
   if (params.cc && params.cc.length > 0) {
-    query.set("cc", params.cc.join(","));
+    query.push(`cc=${params.cc.map((email) => encodeURIComponent(email)).join(",")}`);
   }
 
   if (params.bcc && params.bcc.length > 0) {
-    query.set("bcc", params.bcc.join(","));
+    query.push(`bcc=${params.bcc.map((email) => encodeURIComponent(email)).join(",")}`);
   }
 
-  query.set("subject", params.subject);
-  query.set("body", params.body);
+  query.push(`subject=${encodeURIComponent(params.subject)}`);
+  query.push(`body=${encodeURIComponent(params.body)}`);
 
-  return `mailto:${to}?${query.toString()}`;
+  return `mailto:${to}?${query.join("&")}`;
 }
 
 export function renderTemplate(template: string, values: Record<string, string>): string {
