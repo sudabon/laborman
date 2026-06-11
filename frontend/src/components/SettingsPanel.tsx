@@ -51,6 +51,9 @@ export function SettingsPanel({ settings, onSave }: SettingsPanelProps) {
 
         <fieldset className="grid gap-4 rounded-lg border border-border bg-card p-4">
           <legend className="px-1 text-sm font-semibold">宛先</legend>
+          <p className="text-sm text-muted-foreground">
+            上司は宛先（To）、労務MLはCCに自動で設定されます。
+          </p>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="boss_email">上司メールアドレス</Label>
@@ -72,26 +75,6 @@ export function SettingsPanel({ settings, onSave }: SettingsPanelProps) {
                 autoComplete="email"
                 value={form.labor_ml_email}
                 onChange={(event) => update("labor_ml_email", event.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="cc_emails">CC</Label>
-              <Input
-                id="cc_emails"
-                type="text"
-                inputMode="email"
-                value={form.cc_emails}
-                onChange={(event) => update("cc_emails", event.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="bcc_emails">BCC</Label>
-              <Input
-                id="bcc_emails"
-                type="text"
-                inputMode="email"
-                value={form.bcc_emails}
-                onChange={(event) => update("bcc_emails", event.target.value)}
               />
             </div>
           </div>

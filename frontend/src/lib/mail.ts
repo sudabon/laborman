@@ -83,9 +83,9 @@ function joinMailSections(...sections: string[]): string {
 
 export function buildMailDraft(kind: MailKind, settings: MailSettings, report: WorkReport): MailDraft {
   const values = templateValues(report);
-  const to = parseEmailList(`${settings.boss_email},${settings.labor_ml_email}`);
-  const cc = parseEmailList(settings.cc_emails);
-  const bcc = parseEmailList(settings.bcc_emails);
+  const to = parseEmailList(settings.boss_email);
+  const cc = parseEmailList(settings.labor_ml_email);
+  const bcc: string[] = [];
 
   if (kind === "start") {
     return {

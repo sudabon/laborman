@@ -30,8 +30,6 @@ def default_mail_settings() -> MailSettings:
         id="default",
         boss_email="",
         labor_ml_email="",
-        cc_emails="",
-        bcc_emails="",
         start_subject_template=DEFAULT_START_SUBJECT_TEMPLATE,
         start_body_template=DEFAULT_START_BODY_TEMPLATE,
         end_subject_template=DEFAULT_END_SUBJECT_TEMPLATE,

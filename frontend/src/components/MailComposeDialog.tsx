@@ -28,7 +28,6 @@ export function MailComposeDialog({ draft, open, onOpenChange, onConfirm }: Mail
 
   const toLabel = draft.to.join(", ");
   const ccLabel = draft.cc.join(", ");
-  const bccLabel = draft.bcc.join(", ");
 
   const copy = async (label: string, value: string) => {
     await copyText(value);
@@ -87,12 +86,6 @@ export function MailComposeDialog({ draft, open, onOpenChange, onConfirm }: Mail
               <div>
                 <dt className="font-medium text-muted-foreground">CC</dt>
                 <dd className="mt-1 break-all rounded-md border border-border bg-muted px-3 py-2">{ccLabel}</dd>
-              </div>
-            ) : null}
-            {bccLabel ? (
-              <div>
-                <dt className="font-medium text-muted-foreground">BCC</dt>
-                <dd className="mt-1 break-all rounded-md border border-border bg-muted px-3 py-2">{bccLabel}</dd>
               </div>
             ) : null}
             <div>

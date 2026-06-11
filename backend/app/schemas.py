@@ -42,8 +42,6 @@ DEFAULT_END_FOOTER_TEMPLATE = "よろしくお願いいたします。"
 class MailSettingsBase(BaseModel):
     boss_email: str = ""
     labor_ml_email: str = ""
-    cc_emails: str = ""
-    bcc_emails: str = ""
     start_subject_template: str = DEFAULT_START_SUBJECT_TEMPLATE
     start_body_template: str = DEFAULT_START_BODY_TEMPLATE
     end_subject_template: str = DEFAULT_END_SUBJECT_TEMPLATE

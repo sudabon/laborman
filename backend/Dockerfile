@@ -1,16 +1,26 @@
-FROM python:3.12-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/backend
+FROM python:3.13-slim-trixie
 
 WORKDIR /app
 
-COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /uvx /bin/
-COPY pyproject.toml uv.lock* ./
-RUN uv sync --frozen --no-dev || uv sync --no-dev
+# Install system dependencies
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends cron vim && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY backend ./backend
+    # Copy project & library files
+COPY pyproject.toml requirements.lock ./
 
-EXPOSE 8000
-CMD ["sh", "-c", ".venv/bin/alembic -c backend/alembic.ini upgrade head && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --app-dir backend"]
+# Install dependencies
+RUN PYTHONDONTWRITEBYTECODE=1 pip install --break-system-packages --no-cache-dir -r requirements.lock
+
+# Copy source code
+COPY alembic.ini /app/alembic.ini
+COPY alembic /app/alembic
+COPY app /app/app
+COPY public /app/public
+COPY .env.pro /app/.env
+
+EXPOSE 8888
+CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8888 --app-dir ."]

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.routes import router
@@ -17,8 +19,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+app.mount("/", StaticFiles(directory="./public", html=True), name="public")
 
 
-@app.get("/")
-def root() -> dict[str, str]:
-    return {"name": "laborman-api"}
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    """API は JSON、それ以外は SPA の index.html を返す。"""
+    if request.url.path.startswith("/api"):
+        return JSONResponse(status_code=404, content={"detail": "Not Found"})
+
+    try:
+        with open("./public/index.html") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="ファイルが見つかりません", status_code=404)

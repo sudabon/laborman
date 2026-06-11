@@ -1,0 +1,20 @@
+version: '3'
+
+tasks:
+  test:
+    cmd: uv run pytest
+
+  lint:
+    cmd: uv run ruff check .
+
+  format:
+    cmd: uv run ruff format .
+
+  check:
+    cmd: uv run mypy .
+
+  run:
+    cmds:
+      - |
+        cp .env.local .env
+        uv run uvicorn app.main:app --reload --port 8888 --host 0.0.0.0

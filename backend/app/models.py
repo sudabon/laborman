@@ -22,8 +22,6 @@ class MailSettings(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default="default")
     boss_email: Mapped[str] = mapped_column(String(320), default="", nullable=False)
     labor_ml_email: Mapped[str] = mapped_column(String(320), default="", nullable=False)
-    cc_emails: Mapped[str] = mapped_column(Text, default="", nullable=False)
-    bcc_emails: Mapped[str] = mapped_column(Text, default="", nullable=False)
     start_subject_template: Mapped[str] = mapped_column(Text, nullable=False)
     start_body_template: Mapped[str] = mapped_column(Text, nullable=False)
     end_subject_template: Mapped[str] = mapped_column(Text, nullable=False)
