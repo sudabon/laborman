@@ -92,12 +92,18 @@ export default function App() {
 
   const createMail = async (kind: MailKind, payload: WorkReportUpdate) => {
     if (!settings) return;
+    const { end_mail_body: endMailBody, ...reportUpdate } = payload;
     let currentReport = report;
-    if (!currentReport || currentReport.note !== payload.note || currentReport.work_style !== payload.work_style) {
-      currentReport = await api.updateReport(selectedISODate, payload);
+    if (
+      !currentReport ||
+      currentReport.note !== reportUpdate.note ||
+      currentReport.work_style !== reportUpdate.work_style
+    ) {
+      currentReport = await api.updateReport(selectedISODate, reportUpdate);
       updateLoadedReport(currentReport);
     }
-    setDraft(buildMailDraft(kind, settings, currentReport));
+    const endBodyCoreOverride = kind === "end" ? endMailBody : undefined;
+    setDraft(buildMailDraft(kind, settings, currentReport, endBodyCoreOverride));
     setDialogOpen(true);
   };
 

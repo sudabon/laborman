@@ -40,6 +40,7 @@ export type WorkReport = {
 export type WorkReportUpdate = {
   note?: string;
   work_style?: WorkStyle;
+  end_mail_body?: string | null;
 };
 
 export type MailDraft = {

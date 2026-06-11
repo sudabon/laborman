@@ -65,7 +65,9 @@ def read_month_reports(
     year: int = Query(..., ge=2000, le=2100),
     month: int = Query(..., ge=1, le=12),
 ) -> list[WorkReportRead]:
-    return [serialize_report(report) for report in list_reports_for_month(db, year, month)]
+    return [
+        serialize_report(report) for report in list_reports_for_month(db, year, month)
+    ]
 
 
 @router.get("/work-reports/{work_date}", response_model=WorkReportRead)
@@ -74,20 +76,28 @@ def read_work_report(work_date: date, db: SessionDep) -> WorkReportRead:
 
 
 @router.patch("/work-reports/{work_date}", response_model=WorkReportRead)
-def patch_work_report(work_date: date, payload: WorkReportUpdate, db: SessionDep) -> WorkReportRead:
+def patch_work_report(
+    work_date: date, payload: WorkReportUpdate, db: SessionDep
+) -> WorkReportRead:
     return serialize_report(update_report(db, work_date, payload))
 
 
 @router.post("/work-reports/{work_date}/record-start", response_model=WorkReportRead)
-def post_record_start(work_date: date, payload: RecordEventRequest, db: SessionDep) -> WorkReportRead:
+def post_record_start(
+    work_date: date, payload: RecordEventRequest, db: SessionDep
+) -> WorkReportRead:
     return serialize_report(record_start(db, work_date, payload))
 
 
 @router.post("/work-reports/{work_date}/record-end", response_model=WorkReportRead)
-def post_record_end(work_date: date, payload: RecordEventRequest, db: SessionDep) -> WorkReportRead:
+def post_record_end(
+    work_date: date, payload: RecordEventRequest, db: SessionDep
+) -> WorkReportRead:
     return serialize_report(record_end(db, work_date, payload))
 
 
 @router.post("/work-reports/{work_date}/mail-created", response_model=WorkReportRead)
-def post_mail_created(work_date: date, payload: MailCreatedRequest, db: SessionDep) -> WorkReportRead:
+def post_mail_created(
+    work_date: date, payload: MailCreatedRequest, db: SessionDep
+) -> WorkReportRead:
     return serialize_report(mark_mail_created(db, work_date, payload))

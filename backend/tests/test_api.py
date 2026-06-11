@@ -74,6 +74,39 @@ def test_status_transition_and_end_mail_body_policy(client: TestClient) -> None:
     assert end_payload["end_mail_body"] == "日付: 2026/06/06\n勤務区分: リモート"
 
 
+def test_patch_saves_end_mail_body_draft(client: TestClient) -> None:
+    work_date = "2026-06-08"
+    draft = "本日の業務: 設計レビュー対応"
+
+    saved = client.patch(
+        f"/api/work-reports/{work_date}",
+        json={"note": "メモ", "work_style": "remote", "end_mail_body": draft},
+    )
+    assert saved.status_code == 200
+    saved_payload = saved.json()
+    assert saved_payload["end_mail_body"] == draft
+    assert saved_payload["status"] == "not_started"
+
+    fetched = client.get(f"/api/work-reports/{work_date}")
+    assert fetched.status_code == 200
+    assert fetched.json()["end_mail_body"] == draft
+
+
+def test_patch_clears_end_mail_body_draft_when_empty(client: TestClient) -> None:
+    work_date = "2026-06-09"
+
+    client.patch(
+        f"/api/work-reports/{work_date}",
+        json={"end_mail_body": "一時保存ドラフト"},
+    )
+    cleared = client.patch(
+        f"/api/work-reports/{work_date}",
+        json={"end_mail_body": ""},
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["end_mail_body"] is None
+
+
 def test_settings_persist_boss_and_labor_ml_recipients(client: TestClient) -> None:
     read_default = client.get("/api/mail-settings")
     assert read_default.status_code == 200

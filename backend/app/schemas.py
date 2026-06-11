@@ -66,6 +66,7 @@ class MailSettingsRead(MailSettingsBase):
 class WorkReportUpdate(BaseModel):
     note: str | None = Field(default=None, max_length=NOTE_MAX_LENGTH)
     work_style: WorkStyle | None = None
+    end_mail_body: str | None = None
 
 
 class RecordEventRequest(WorkReportUpdate):

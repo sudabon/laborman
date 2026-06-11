@@ -5,8 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDateForDisplay, formatDuration, formatTime } from "@/lib/date";
-import { hasRequiredRecipients, NOTE_MAX_LENGTH, statusLabels, workStyleLabels } from "@/lib/mail";
+import { buildEndBodyCore, hasRequiredRecipients, NOTE_MAX_LENGTH, statusLabels, workStyleLabels } from "@/lib/mail";
 import type { MailKind, MailSettings, WorkReport, WorkReportUpdate, WorkStyle } from "@/types";
+
+function mergeReport(report: WorkReport, note: string, workStyle: WorkStyle): WorkReport {
+  return { ...report, note, work_style: workStyle };
+}
 
 type TodayReportProps = {
   date: Date;
@@ -35,6 +39,7 @@ export function TodayReport({
 }: TodayReportProps) {
   const [note, setNote] = useState(report?.note ?? "");
   const [workStyle, setWorkStyle] = useState<WorkStyle>(report?.work_style ?? "office");
+  const [businessReport, setBusinessReport] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,8 +47,20 @@ export function TodayReport({
     setWorkStyle(report?.work_style ?? "office");
   }, [report?.id, report?.note, report?.work_style]);
 
+  useEffect(() => {
+    if (!report || !settings) {
+      setBusinessReport("");
+      return;
+    }
+    if (report.end_mail_body) {
+      setBusinessReport(report.end_mail_body);
+      return;
+    }
+    setBusinessReport(buildEndBodyCore(settings, mergeReport(report, note, workStyle)));
+  }, [report, settings, note, workStyle]);
+
   const recipientsReady = settings ? hasRequiredRecipients(settings) : false;
-  const payload = { note, work_style: workStyle };
+  const payload = { note, work_style: workStyle, end_mail_body: businessReport || null };
   const startConfirmationKey = report ? `${report.work_date}:start` : "";
   const endConfirmationKey = report ? `${report.work_date}:end` : "";
 
@@ -127,6 +144,16 @@ export function TodayReport({
           </div>
 
           <div className="grid gap-2">
+            <Label htmlFor="business-report">業務報告</Label>
+            <Textarea
+              id="business-report"
+              value={businessReport}
+              onChange={(event) => setBusinessReport(event.target.value)}
+              rows={6}
+            />
+          </div>
+
+          <div className="grid gap-2">
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="note">メモ</Label>
               <span className="text-xs text-muted-foreground">
@@ -184,7 +211,7 @@ export function TodayReport({
           <div className="grid gap-2">
             <Button
               variant="secondary"
-              onClick={() => run("end-mail", () => onCreateMail("end", payload))}
+              onClick={() => run("end-mail", () => onCreateMail("end", { ...payload, end_mail_body: businessReport }))}
               disabled={!recipientsReady || !report?.end_time || busy !== null}
             >
               <Mail aria-hidden="true" className="h-4 w-4" />
