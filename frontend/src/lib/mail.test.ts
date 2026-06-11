@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildMailDraft, buildMailtoUrl, hasRequiredRecipients, renderTemplate } from "./mail";
+import { buildEndBodyCore, buildMailDraft, buildMailtoUrl, hasRequiredRecipients, renderTemplate } from "./mail";
 import type { MailSettings, WorkReport } from "@/types";
 
 const settings: MailSettings = {
@@ -94,6 +94,12 @@ describe("mail utilities", () => {
     expect(draft.bcc).toEqual([]);
   });
 
+  it("builds end body core from the end body template", () => {
+    expect(buildEndBodyCore(settings, report)).toBe(
+      "勤務時間: 9時間30分\n勤務区分: リモート\nメモ: レビュー対応",
+    );
+  });
+
   it("builds end mail from header, body core, and footer while exposing body core for persistence", () => {
     const draft = buildMailDraft("end", settings, report);
 
@@ -101,6 +107,17 @@ describe("mail utilities", () => {
     expect(draft.body).toContain("勤務区分: リモート");
     expect(draft.body).toContain("よろしくお願いいたします。");
     expect(draft.endBodyCore).toBe("勤務時間: 9時間30分\n勤務区分: リモート\nメモ: レビュー対応");
+  });
+
+  it("uses an override for end mail body core when provided", () => {
+    const override = "本日の業務: 設計レビュー対応";
+    const draft = buildMailDraft("end", settings, report, override);
+
+    expect(draft.endBodyCore).toBe(override);
+    expect(draft.body).toContain(override);
+    expect(draft.body).toContain("お疲れ様です。本日、終業しました。");
+    expect(draft.body).toContain("よろしくお願いいたします。");
+    expect(draft.body).not.toContain("勤務時間: 9時間30分");
   });
 
   it("detects missing required recipients", () => {

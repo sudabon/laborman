@@ -81,7 +81,16 @@ function joinMailSections(...sections: string[]): string {
     .join("\n\n");
 }
 
-export function buildMailDraft(kind: MailKind, settings: MailSettings, report: WorkReport): MailDraft {
+export function buildEndBodyCore(settings: MailSettings, report: WorkReport): string {
+  return renderTemplate(settings.end_body_template, templateValues(report));
+}
+
+export function buildMailDraft(
+  kind: MailKind,
+  settings: MailSettings,
+  report: WorkReport,
+  endBodyCoreOverride?: string | null,
+): MailDraft {
   const values = templateValues(report);
   const to = parseEmailList(settings.boss_email);
   const cc = parseEmailList(settings.labor_ml_email);
@@ -99,7 +108,7 @@ export function buildMailDraft(kind: MailKind, settings: MailSettings, report: W
   }
 
   const header = renderTemplate(settings.end_header_template, values);
-  const endBodyCore = renderTemplate(settings.end_body_template, values);
+  const endBodyCore = endBodyCoreOverride ?? buildEndBodyCore(settings, report);
   const footer = renderTemplate(settings.end_footer_template, values);
 
   return {

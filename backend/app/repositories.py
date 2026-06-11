@@ -93,6 +93,9 @@ def update_report(db: Session, work_date: date, data: WorkReportUpdate) -> WorkR
         report.note = payload["note"]
     if "work_style" in payload and payload["work_style"] is not None:
         report.work_style = payload["work_style"]
+    if "end_mail_body" in payload:
+        end_mail_body = payload["end_mail_body"]
+        report.end_mail_body = end_mail_body if end_mail_body else None
     db.add(report)
     db.commit()
     db.refresh(report)
@@ -117,7 +120,9 @@ def record_end(db: Session, work_date: date, data: RecordEventRequest) -> WorkRe
     return report
 
 
-def mark_mail_created(db: Session, work_date: date, data: MailCreatedRequest) -> WorkReport:
+def mark_mail_created(
+    db: Session, work_date: date, data: MailCreatedRequest
+) -> WorkReport:
     report = get_or_create_report(db, work_date)
     timestamp = now_utc()
     if data.kind == "start":

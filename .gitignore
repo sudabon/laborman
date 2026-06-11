@@ -144,6 +144,7 @@ vite.config.ts.timestamp-*
 
 # Python
 **/__pycache__
+backend/public/*
 
 # macOS
 **/.DS_Store
