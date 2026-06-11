@@ -1,8 +1,15 @@
 import { CalendarDays } from "lucide-react";
 import { DayButtonProps, DayPicker } from "react-day-picker";
+import { ja } from "react-day-picker/locale";
 
 import { Button } from "@/components/ui/button";
-import { isPastWeekday, isSameDate, toISODate } from "@/lib/date";
+import {
+  formatCalendarWeekdayHeader,
+  isPastWeekday,
+  isReportingWeekday,
+  isSameDate,
+  toISODate,
+} from "@/lib/date";
 import { statusLabels } from "@/lib/mail";
 import { cn } from "@/lib/utils";
 import type { ReportStatus, WorkReport } from "@/types";
@@ -48,6 +55,7 @@ export function ReportCalendar({
   function StatusDayButton(props: DayButtonProps) {
     const dayDate = props.day.date;
     const status = getStatus(dayDate);
+    const reportingDay = isReportingWeekday(dayDate);
     const incompletePast = isPastWeekday(dayDate) && status !== "end_mail_created";
     const selected = isSameDate(dayDate, selectedDate);
     const outside = Boolean(props.modifiers.outside);
@@ -64,10 +72,14 @@ export function ReportCalendar({
         {...props}
         type="button"
         className={className}
-        aria-label={`${dayDate.toLocaleDateString("ja-JP")} ${statusLabels[status]}`}
+        aria-label={
+          reportingDay
+            ? `${dayDate.toLocaleDateString("ja-JP")} ${statusLabels[status]}`
+            : `${dayDate.toLocaleDateString("ja-JP")} 報告不要`
+        }
       >
         <span className="text-sm font-semibold">{dayDate.getDate()}</span>
-        <span className="leading-tight">{shortStatusLabels[status]}</span>
+        <span className="leading-tight">{reportingDay ? shortStatusLabels[status] : ""}</span>
       </button>
     );
   }
@@ -85,18 +97,34 @@ export function ReportCalendar({
         </Button>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div className="w-full rounded-lg border border-border bg-card p-4">
         <DayPicker
+          className="w-full"
+          locale={ja}
           mode="single"
           month={month}
           selected={selectedDate}
           showOutsideDays
           onMonthChange={onMonthChange}
           onSelect={(date) => date && onSelectDate(date)}
+          classNames={{
+            months: "w-full max-w-none",
+            month: "w-full",
+            month_grid: "w-full",
+          }}
           components={{ DayButton: StatusDayButton }}
+          formatters={{
+            formatWeekdayName: (weekday) => formatCalendarWeekdayHeader(weekday),
+          }}
           labels={{
             labelNext: () => "翌月",
             labelPrevious: () => "前月",
+            labelWeekday: (date) =>
+              isReportingWeekday(date)
+                ? formatCalendarWeekdayHeader(date)
+                : date.getDay() === 0
+                  ? "日曜日（報告不要）"
+                  : "土曜日（報告不要）",
           }}
         />
       </div>

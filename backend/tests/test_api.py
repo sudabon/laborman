@@ -74,7 +74,7 @@ def test_status_transition_and_end_mail_body_policy(client: TestClient) -> None:
     assert end_payload["end_mail_body"] == "日付: 2026/06/06\n勤務区分: リモート"
 
 
-def test_settings_allow_optional_cc_bcc_and_empty_required_recipients(client: TestClient) -> None:
+def test_settings_persist_boss_and_labor_ml_recipients(client: TestClient) -> None:
     read_default = client.get("/api/mail-settings")
     assert read_default.status_code == 200
     assert read_default.json()["boss_email"] == ""
@@ -85,8 +85,6 @@ def test_settings_allow_optional_cc_bcc_and_empty_required_recipients(client: Te
         json={
             "boss_email": "boss@example.com",
             "labor_ml_email": "labor@example.com",
-            "cc_emails": "",
-            "bcc_emails": "",
             "start_subject_template": "【始業報告】{{date}}",
             "start_body_template": "始業 {{work_style}}",
             "end_subject_template": "【終業報告】{{date}}",
@@ -97,8 +95,8 @@ def test_settings_allow_optional_cc_bcc_and_empty_required_recipients(client: Te
     )
     assert saved.status_code == 200
     payload = saved.json()
-    assert payload["cc_emails"] == ""
-    assert payload["bcc_emails"] == ""
+    assert payload["boss_email"] == "boss@example.com"
+    assert payload["labor_ml_email"] == "labor@example.com"
 
 
 def test_end_record_without_start_keeps_duration_unknown(client: TestClient) -> None:

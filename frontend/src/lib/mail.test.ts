@@ -7,8 +7,6 @@ const settings: MailSettings = {
   id: "default",
   boss_email: "boss@example.com",
   labor_ml_email: "labor@example.com",
-  cc_emails: "",
-  bcc_emails: "",
   start_subject_template: "【始業報告】{{date}}",
   start_body_template: "始業 {{start_time}} {{work_style}} {{note}}",
   end_subject_template: "【終業報告】{{date}}",
@@ -86,6 +84,14 @@ describe("mail utilities", () => {
     const draft = buildMailDraft("start", settings, report);
     expect(draft.subject).toBe("【始業報告】2026/06/06");
     expect(draft.body).toContain("リモート");
+  });
+
+  it("maps boss to to and labor ml to cc", () => {
+    const draft = buildMailDraft("start", settings, report);
+
+    expect(draft.to).toEqual(["boss@example.com"]);
+    expect(draft.cc).toEqual(["labor@example.com"]);
+    expect(draft.bcc).toEqual([]);
   });
 
   it("builds end mail from header, body core, and footer while exposing body core for persistence", () => {

@@ -45,9 +45,20 @@ export function isSameDate(a: Date, b: Date): boolean {
   return toISODate(a) === toISODate(b);
 }
 
-export function isPastWeekday(date: Date, today = new Date()): boolean {
+const calendarWeekdayHeaderLabels = ["", "月", "火", "水", "木", "金", ""] as const;
+
+export function formatCalendarWeekdayHeader(weekday: Date): string {
+  return calendarWeekdayHeaderLabels[weekday.getDay()] ?? "";
+}
+
+export function isReportingWeekday(date: Date): boolean {
   const day = date.getDay();
+  return day >= 1 && day <= 5;
+}
+
+export function isPastWeekday(date: Date, today = new Date()): boolean {
+  if (!isReportingWeekday(date)) return false;
   const candidate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   const current = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  return candidate < current && day >= 1 && day <= 5;
+  return candidate < current;
 }

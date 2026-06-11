@@ -74,23 +74,38 @@
 .rdp-root {
   --rdp-accent-color: var(--primary);
   --rdp-selected-border: 2px solid var(--primary);
+  --rdp-day-height: 5rem;
+  --rdp-day_button-height: 4.75rem;
   width: 100%;
 }
 
-.rdp-months,
-.rdp-month,
-.rdp-table {
+.rdp-months {
   width: 100%;
   max-width: none;
+}
+
+.rdp-month {
+  width: 100%;
+}
+
+.rdp-month_grid {
+  width: 100%;
+  table-layout: fixed;
 }
 
 .rdp-caption_label {
   font-weight: 700;
 }
 
+.rdp-day {
+  width: auto;
+  height: var(--rdp-day-height);
+  vertical-align: top;
+}
+
 .rdp-day_button {
   width: 100%;
-  height: 4.75rem;
+  height: var(--rdp-day_button-height);
   border-radius: 8px;
 }
 

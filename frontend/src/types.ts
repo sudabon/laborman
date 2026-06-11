@@ -11,8 +11,6 @@ export type MailSettings = {
   id: string;
   boss_email: string;
   labor_ml_email: string;
-  cc_emails: string;
-  bcc_emails: string;
   start_subject_template: string;
   start_body_template: string;
   end_subject_template: string;

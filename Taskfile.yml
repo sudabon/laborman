@@ -1,0 +1,38 @@
+version: "3"
+
+tasks:
+  build:
+    desc: build labor app
+    cmds:
+      - task: _build_frontend
+      - task: _build_backend
+
+  start:
+    desc: start labor app
+    cmds: 
+      - docker compose build
+      - docker compose up -d
+
+  stop:
+    desc: stop labor app
+    cmds:
+      - docker compose down
+  
+  _build_frontend:
+    desc: build frontend
+    internal: true
+    cmds:
+      - |
+        cd ./frontend
+        pnpm run build
+  
+  _build_backend:
+    desc: build backend
+    internal: true
+    cmds:
+      - |
+        cd ./backend
+        uv pip compile pyproject.toml > requirements.lock
+        rm -rf ./public/*
+        cp -rf ../frontend/dist/* ./public/
+        docker build --platform linux/amd64 -t labor .

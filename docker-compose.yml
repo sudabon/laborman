@@ -17,27 +17,16 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: backend
+      dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgresql+psycopg://laborman:laborman@db:5432/laborman
-      BACKEND_CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      DATABASE_URL: postgresql+psycopg2://laborman:laborman@db:5432/laborman
+      BACKEND_CORS_ORIGINS: http://localhost:8888,http://127.0.0.1:8888
     ports:
-      - "8000:8000"
+      - "8888:8888"
     depends_on:
       db:
         condition: service_healthy
-
-  frontend:
-    build:
-      context: frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_BASE_URL: http://localhost:8000
-    ports:
-      - "5173:80"
-    depends_on:
-      - backend
 
 volumes:
   postgres-data:
