@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-laborman は **SPA フロントエンド + REST API バックエンド + PostgreSQL** の 3 層構成です。メール送信機能はサーバー側に持たず、フロントエンドがテンプレートから `mailto:` URL を生成してユーザーのメールクライアントに委譲します。
+laborman は **SPA フロントエンド + REST API バックエンド + PostgreSQL** の 3 層構成です。メール送信機能はサーバー側に持たず、フロントエンドがテンプレートから Outlook on the web の compose deep link を生成し、新しいブラウザタブの作成画面へ委譲します。
 
 ## システム構成図
 
@@ -8,8 +8,8 @@ laborman は **SPA フロントエンド + REST API バックエンド + Postgre
 flowchart LR
     subgraph Client["ブラウザ"]
         SPA["React 19 SPA<br/>(Vite / Tailwind)"]
-        Mailer["メールクライアント<br/>(Outlook 等)"]
-        LS["localStorage<br/>(送信確認フラグ)"]
+        OWA["Outlook on the web<br/>(新しい作成タブ)"]
+        LS["localStorage<br/>(送信済み自己申告)"]
     end
 
     subgraph Server["バックエンド (FastAPI)"]
@@ -21,8 +21,8 @@ flowchart LR
     DB[("PostgreSQL 17")]
 
     SPA -->|"fetch (JSON)"| API
-    SPA -.->|"mailto: で起動"| Mailer
-    SPA <-->|"送信済み状態"| LS
+    SPA -.->|"compose deep link<br/>noopener / noreferrer"| OWA
+    SPA <-->|"送信済み自己申告"| LS
     API --> Repo --> ORM --> DB
 
     Nginx["Nginx<br/>(静的配信)"] -.->|"本番ビルド配信"| SPA
@@ -36,19 +36,25 @@ sequenceDiagram
     participant FE as React SPA
     participant API as FastAPI
     participant DB as PostgreSQL
-    participant M as メーラー
+    participant OWA as Outlook on the web
 
     U->>FE: 「始業を記録」
     FE->>API: POST /api/work-reports/{date}/record-start
     API->>DB: start_time を記録 (UTC)
     API-->>FE: WorkReport (status=start_recorded)
-    U->>FE: 「メール作成」
+    U->>FE: 「Outlook on the webでメール作成」
     FE->>FE: buildMailDraft() でテンプレート展開
-    FE->>M: window 経由で mailto: 起動
-    U->>FE: 「メール作成済み」を確認
+    FE->>FE: To・CC・BCCをToへ統合
+    FE->>FE: buildOutlookComposeUrl() でURL生成
+    U->>FE: 確認画面で作成を確定
+    FE->>OWA: window.open(_blank, noopener/noreferrer)
+    Note over FE,OWA: ユーザー操作内でAPI処理より先に新しいタブを開く
     FE->>API: POST /api/work-reports/{date}/mail-created
     API->>DB: start_mail_created_at を記録
     API-->>FE: WorkReport (status=start_mail_created)
+    U->>OWA: Fromと内容を確認して送信
+    U->>FE: 元のタブへ戻り送信済みを自己申告
+    FE->>FE: localStorageへ自己申告を保存
 ```
 
 ## レイヤー構成
@@ -81,16 +87,19 @@ sequenceDiagram
 | `components/TodayReport.tsx` | 本日の打刻・メモ入力・メール作成ボタン |
 | `components/ReportCalendar.tsx` | 月次カレンダー（react-day-picker） |
 | `components/SettingsPanel.tsx` | メール設定フォーム |
-| `components/MailComposeDialog.tsx` | メール下書きプレビューと `mailto:` 起動 |
+| `components/MailComposeDialog.tsx` | メール下書きプレビュー、M365／From確認案内、Outlook on the web の新規タブ起動、項目別コピー |
 | `components/ui/` | shadcn-ui 系の共通 UI 部品 |
 | `lib/api.ts` | `fetch` ラッパー。全 API 呼び出しを集約 |
-| `lib/mail.ts` | テンプレート展開（`renderTemplate`）と `mailto:` URL 構築（`buildMailtoUrl`） |
+| `lib/mail.ts` | テンプレート展開（`renderTemplate`）と Outlook compose deep link 構築（`buildOutlookComposeUrl`） |
 | `lib/date.ts` | 日付・時刻・勤務時間の整形 |
 | `types.ts` | バックエンド DTO に対応する TypeScript 型 |
 
 設計上のポイント:
 
-- **メール送信は行わない** — `lib/mail.ts` が `mailto:` URL を組み立て、件名・本文は `encodeURIComponent` でエスケープ、複数宛先はリテラルのカンマで連結します。送信操作はユーザーのメールクライアントに委譲。
+- **メール送信は行わない** — `lib/mail.ts` が Outlook on the web の compose deep link を組み立て、宛先・件名・本文は `encodeURIComponent` でエスケープ、複数宛先はリテラルのカンマで連結します。送信操作はユーザーに委譲します。
+- **宛先区分をToへ統合する** — compose deep linkでCCが反映されない実機結果に合わせ、`getOutlookToRecipients()` が登録上のTo・CC・BCCをこの順で統合し、`to` パラメータだけを生成します。自動入力と引き換えにCC/BCCの区分は維持されず、BCCを含む全宛先が受信者全員に表示されるため、設定画面と確認画面で警告します。
+- **新しいタブを先に開く** — 確認クリックの同期処理内で `window.open` を呼び、`noopener,noreferrer` で元タブへの参照を渡しません。その後にメール作成済み API を実行するため、ポップアップブロックを避けながら元の laborman タブと記録フローを維持します。
+- **外部タブの結果を推測しない** — Outlook on the web の読込状態、From、送信完了はクロスオリジンのため検知しません。「メール作成済み」は API、送信済みの自己申告は localStorage と責務を分けます。
 - **テンプレート変数** — `{{date}}` `{{start_time}}` `{{end_time}}` `{{work_duration}}` `{{work_style}}` `{{note}}` を `renderTemplate` が置換。
 - **送信確認は localStorage** — 「送信済み」のチェック状態はサーバーに持たず、`laborman.sentConfirmations` キーでブラウザに保持。
 
@@ -98,7 +107,7 @@ sequenceDiagram
 
 - **FastAPI + Pydantic**: 型安全な DTO とスキーマ駆動の OpenAPI 自動生成。
 - **SQLAlchemy 2.0 + Alembic**: 型付き ORM とマイグレーションの分離。
-- **mailto: 方式**: SMTP 認証情報や送信基盤を持たずに既存メール運用へ組み込めるため。
+- **Outlook on the web compose deep link**: OS の既定メールクライアントに依存せず、Microsoft Graph のアプリ登録・権限同意・トークン管理や SMTP 認証情報を追加せずに会社のブラウザメール運用へ組み込めるため。CC/BCCはdeep linkで安定して反映されないため、全宛先をToへ統合するトレードオフを採用しています。
 - **Docker Compose**: db / backend / frontend を 1 コマンドで再現。
 
 ## デプロイ構成

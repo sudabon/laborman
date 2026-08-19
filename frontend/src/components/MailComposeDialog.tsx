@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { buildMailtoUrl } from "@/lib/mail";
+import { buildOutlookComposeUrl, getOutlookToRecipients } from "@/lib/mail";
 import type { MailDraft } from "@/types";
 
 type MailComposeDialogProps = {
@@ -21,13 +21,12 @@ export function MailComposeDialog({ draft, open, onOpenChange, onConfirm }: Mail
   const [copied, setCopied] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
 
-  const mailtoUrl = useMemo(() => (draft ? buildMailtoUrl(draft) : ""), [draft]);
-  const isLongUrl = mailtoUrl.length > 1900;
+  const outlookComposeUrl = useMemo(() => (draft ? buildOutlookComposeUrl(draft) : ""), [draft]);
+  const isLongUrl = outlookComposeUrl.length > 1900;
 
   if (!draft) return null;
 
-  const toLabel = draft.to.join(", ");
-  const ccLabel = draft.cc.join(", ");
+  const outlookToLabel = getOutlookToRecipients(draft).join(", ");
 
   const copy = async (label: string, value: string) => {
     await copyText(value);
@@ -37,7 +36,7 @@ export function MailComposeDialog({ draft, open, onOpenChange, onConfirm }: Mail
   const confirm = async () => {
     setIsConfirming(true);
     try {
-      window.location.href = mailtoUrl;
+      window.open(outlookComposeUrl, "_blank", "noopener,noreferrer");
       await onConfirm(draft);
     } finally {
       setIsConfirming(false);
@@ -50,10 +49,11 @@ export function MailComposeDialog({ draft, open, onOpenChange, onConfirm }: Mail
         <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
           <div>
             <h1 id="mail-dialog-title" className="text-xl font-semibold">
-              以下の内容でOutlookメールを作成します
+              以下の内容でOutlook on the webメールを作成します
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Fromが会社メールアドレスになっていることをOutlookで確認してください。
+              会社のMicrosoft 365アカウントでOutlook on the webにサインインしてから進み、
+              作成画面でFrom（差出人）が会社メールアドレスになっていることを確認してください。
             </p>
           </div>
           <Button variant="ghost" size="icon" aria-label="閉じる" onClick={() => onOpenChange(false)}>
@@ -66,28 +66,27 @@ export function MailComposeDialog({ draft, open, onOpenChange, onConfirm }: Mail
             <div className="flex gap-2">
               <MailWarning aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
-                メール作成後も送信完了は検知しません。Outlookで内容を確認してから送信してください。
+                新しいタブで作成画面を開き、labormanのタブはこのまま残ります。送信完了は検知しないため、
+                Outlook on the webで内容を確認してから送信してください。登録上のCC/BCCも宛先（To）に入り、
+                BCCを含む全宛先が受信者全員に表示されます。
               </p>
             </div>
           </div>
 
           {isLongUrl ? (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              mailto URLが長くなっています。Outlookが開かない場合はコピーして手動送信してください。
+              Outlook on the webのメール作成URLが長くなっています。入力内容が引き継がれない場合は、
+              下の項目をコピーして手動で入力してください。
             </div>
           ) : null}
 
           <dl className="grid gap-3 text-sm">
             <div>
-              <dt className="font-medium text-muted-foreground">宛先</dt>
-              <dd className="mt-1 break-all rounded-md border border-border bg-muted px-3 py-2">{toLabel}</dd>
+              <dt className="font-medium text-muted-foreground">Outlookの宛先（To）</dt>
+              <dd className="mt-1 break-all rounded-md border border-border bg-muted px-3 py-2">
+                {outlookToLabel}
+              </dd>
             </div>
-            {ccLabel ? (
-              <div>
-                <dt className="font-medium text-muted-foreground">CC</dt>
-                <dd className="mt-1 break-all rounded-md border border-border bg-muted px-3 py-2">{ccLabel}</dd>
-              </div>
-            ) : null}
             <div>
               <dt className="font-medium text-muted-foreground">件名</dt>
               <dd className="mt-1 break-all rounded-md border border-border bg-muted px-3 py-2">{draft.subject}</dd>
@@ -105,12 +104,13 @@ export function MailComposeDialog({ draft, open, onOpenChange, onConfirm }: Mail
               手動送信用コピー
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Outlookを開けない場合は、各項目をコピーして手動送信してください。
+              新しいタブが開かない、Outlook on the webが表示されない、または入力内容が引き継がれない場合は、
+              もう一度開くか、各項目をコピーして手動で送信してください。
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => copy("宛先", toLabel)}>
+              <Button variant="outline" size="sm" onClick={() => copy("宛先（To）", outlookToLabel)}>
                 <Copy aria-hidden="true" className="h-4 w-4" />
-                宛先
+                宛先（To）
               </Button>
               <Button variant="outline" size="sm" onClick={() => copy("件名", draft.subject)}>
                 <Copy aria-hidden="true" className="h-4 w-4" />
@@ -131,7 +131,7 @@ export function MailComposeDialog({ draft, open, onOpenChange, onConfirm }: Mail
           </Button>
           <Button onClick={confirm} disabled={isConfirming}>
             <ExternalLink aria-hidden="true" className="h-4 w-4" />
-            {isConfirming ? "記録中" : "Outlookを開く"}
+            {isConfirming ? "作成済みを記録中" : "Outlook on the webを開く"}
           </Button>
         </footer>
       </section>

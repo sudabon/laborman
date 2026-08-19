@@ -12,6 +12,7 @@ laborman をローカルで動かすための手順です。最短で動かす�
 | Node.js | 20+（Docker は 24） | フロントエンドビルド |
 | pnpm | 10+ | JS 依存管理 |
 | PostgreSQL | 17 | データベース（ローカル開発時） |
+| Microsoft 365 | 会社アカウントで Outlook on the web を利用可能 | 報告メールの作成と送信 |
 
 ---
 
@@ -87,6 +88,15 @@ pnpm dev   # http://localhost:5173
 
 ---
 
+## メール作成前のブラウザ準備
+
+1. laborman を利用するブラウザで [Outlook on the web](https://outlook.office.com/mail/) を開き、会社の Microsoft 365 アカウントでサインインします。
+2. 複数の Microsoft 365 アカウントにサインインしている場合は、会社のメールボックスを開いていることを確認します。compose deep link は From を指定しません。
+3. laborman に戻ってメールを作成します。確認後は Outlook on the web が新しいタブで開き、元の laborman タブは残ります。
+4. Outlook on the web の作成画面で From（差出人）、宛先（To）、件名、本文を確認してから送信します。登録上の To・CC・BCC はすべて To へ統合され、BCC を含む全宛先が受信者全員に表示されます。
+
+---
+
 ## 動作確認
 
 ```bash
@@ -131,7 +141,28 @@ cd frontend && pnpm test
 - ローカル開発では `cd backend && uv run alembic upgrade head` を手動実行する必要があります（Docker では自動）。
 - `alembic.ini` の `sqlalchemy.url` よりも環境変数 `DATABASE_URL` が優先されます（`backend/alembic/env.py` が `get_settings()` から取得）。
 
-### `mailto:` でメーラーが起動しない
+### Outlook on the web の新しいタブが開かない
 
-- OS で既定のメールクライアントが設定されているか確認してください。アプリはメール送信を行わず、`mailto:` リンクを開くだけです。
-- 設定画面で「上司メール」「労務 ML メール」の両方が入力されていないと宛先が不足します（`hasRequiredRecipients`）。
+- ブラウザのアドレスバー付近にポップアップ／新しいタブのブロック表示があれば、laborman からのポップアップを許可します。
+- 元の laborman タブと確認画面は残るため、許可後に「Outlook on the webを開く」をもう一度押してください。
+- 開けないままでも、確認画面の「手動送信用コピー」から「宛先」「件名」「本文」を個別にコピーし、Outlook on the web の新規メールへ貼り付けて送信できます。
+
+### サインイン画面になり、入力内容が引き継がれない
+
+- 先に会社の Microsoft 365 アカウントで Outlook on the web へのサインインを完了し、laborman の確認画面へ戻ってもう一度開きます。
+- 再試行しても入力されない場合は、確認画面の「宛先（To）」「件名」「本文」を順番にコピーして新規メールへ貼り付けます。コピーされる宛先には、登録上の To・CC・BCC がこの順ですべて含まれます。
+- 本文が長い場合は作成URLを処理できないことがあります。長いURLの警告が出たときも同じコピー手順を使用してください。
+
+### 複数アカウントで意図しない From が選ばれる
+
+- Outlook on the web 右上のアカウント表示で会社アカウント／会社メールボックスを選び直してください。
+- compose deep link では From を指定できません。作成画面の From（差出人）が会社メールアドレスでない場合は送信せず、正しいアカウントへ切り替えてください。
+
+### CC/BCCがOutlookの宛先（To）へ表示される
+
+- Outlook on the web の compose deep link では CC/BCC が安定して反映されないため、laborman は登録上の To・CC・BCC をすべて To へ統合します。
+- BCC の秘匿性も失われ、全宛先が受信者全員に表示されます。確認画面と Outlook の作成画面で宛先を確認し、この運用で問題がある宛先は送信前に削除してください。
+
+### 宛先が不足してメール作成ボタンを押せない
+
+- 設定画面で「上司メール」「労務 ML メール」の両方を入力してください（`hasRequiredRecipients`）。

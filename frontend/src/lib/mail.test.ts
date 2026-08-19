@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { buildEndBodyCore, buildMailDraft, buildMailtoUrl, hasRequiredRecipients, renderTemplate } from "./mail";
-import type { MailSettings, WorkReport } from "@/types";
+import {
+  buildEndBodyCore,
+  buildMailDraft,
+  buildOutlookComposeUrl,
+  getOutlookToRecipients,
+  hasRequiredRecipients,
+  OUTLOOK_WEB_COMPOSE_URL,
+  renderTemplate,
+} from "./mail";
+import type { MailDraft, MailSettings, WorkReport } from "@/types";
 
 const settings: MailSettings = {
   id: "default",
@@ -34,46 +42,68 @@ const report: WorkReport = {
 };
 
 describe("mail utilities", () => {
-  it("builds a mailto URL without cc and bcc when they are empty", () => {
-    const url = buildMailtoUrl({
-      to: ["boss@example.com", "labor@example.com"],
-      subject: "【始業報告】2026/06/06",
-      body: "始業しました",
-      cc: [],
-      bcc: [],
-    });
-
-    expect(url).toMatch(/^mailto:boss%40example\.com,labor%40example\.com\?/);
-    expect(url).toContain("subject=");
-    expect(url).toContain("body=");
-    expect(url).not.toContain("cc=");
-    expect(url).not.toContain("bcc=");
-  });
-
-  it("encodes mailto subject and body spaces as percent escapes", () => {
-    const url = buildMailtoUrl({
-      to: ["boss@example.com"],
-      subject: "Start report",
-      body: "勤務時間: 9時間30分\n勤務区分: リモート",
-    });
-
-    expect(url).toContain("subject=Start%20report");
-    expect(url).toContain("%E5%8B%A4%E5%8B%99%E6%99%82%E9%96%93%3A%209%E6%99%82%E9%96%9330%E5%88%86");
-    expect(url).not.toContain("+");
-  });
-
-  it("keeps multiple cc and bcc recipients separated by literal commas", () => {
-    const url = buildMailtoUrl({
-      to: ["boss@example.com"],
+  it("merges multiple to, cc, and bcc recipients into the Outlook to parameter", () => {
+    const draft: MailDraft = {
+      kind: "start",
+      to: ["boss@example.com", "manager@example.com"],
       cc: ["team-one@example.com", "team-two@example.com"],
       bcc: ["audit-one@example.com", "audit-two@example.com"],
       subject: "Daily report",
       body: "Done",
+    };
+    const url = buildOutlookComposeUrl(draft);
+
+    expect(url).toBe(
+      `${OUTLOOK_WEB_COMPOSE_URL}?to=boss%40example.com,manager%40example.com` +
+        ",team-one%40example.com,team-two%40example.com" +
+        ",audit-one%40example.com,audit-two%40example.com" +
+        "&subject=Daily%20report&body=Done",
+    );
+    expect(getOutlookToRecipients(draft)).toEqual([
+      "boss@example.com",
+      "manager@example.com",
+      "team-one@example.com",
+      "team-two@example.com",
+      "audit-one@example.com",
+      "audit-two@example.com",
+    ]);
+    expect(url).not.toContain("%2C");
+    expect(url).not.toContain("&cc=");
+    expect(url).not.toContain("&bcc=");
+  });
+
+  it("preserves empty subject and body parameters without adding cc or bcc parameters", () => {
+    const url = buildOutlookComposeUrl({
+      kind: "start",
+      to: ["boss@example.com"],
+      cc: [],
+      bcc: [],
+      subject: "",
+      body: "",
     });
 
-    expect(url).toContain("cc=team-one%40example.com,team-two%40example.com");
-    expect(url).toContain("bcc=audit-one%40example.com,audit-two%40example.com");
-    expect(url).not.toContain("%2C");
+    expect(url).toBe(`${OUTLOOK_WEB_COMPOSE_URL}?to=boss%40example.com&subject=&body=`);
+    expect(url).not.toContain("&cc=");
+    expect(url).not.toContain("&bcc=");
+  });
+
+  it("percent-encodes Japanese, newlines, spaces, and literal plus signs without using +", () => {
+    const url = buildOutlookComposeUrl({
+      kind: "end",
+      to: ["boss@example.com"],
+      cc: [],
+      bcc: [],
+      subject: "終業 報告 + 確認",
+      body: "勤務時間: 9時間30分\n勤務区分: リモート",
+    });
+
+    expect(url).toContain(
+      "subject=%E7%B5%82%E6%A5%AD%20%E5%A0%B1%E5%91%8A%20%2B%20%E7%A2%BA%E8%AA%8D",
+    );
+    expect(url).toContain("%E5%8B%A4%E5%8B%99%E6%99%82%E9%96%93%3A%209%E6%99%82%E9%96%9330%E5%88%86");
+    expect(url).toContain("%0A");
+    expect(url).toContain("%2B");
+    expect(url).not.toContain("+");
   });
 
   it("replaces template variables and expands work style labels", () => {

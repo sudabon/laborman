@@ -52,7 +52,8 @@ export function SettingsPanel({ settings, onSave }: SettingsPanelProps) {
         <fieldset className="grid gap-4 rounded-lg border border-border bg-card p-4">
           <legend className="px-1 text-sm font-semibold">宛先</legend>
           <p className="text-sm text-muted-foreground">
-            上司は宛先（To）、労務MLはCCに自動で設定されます。
+            Outlook on the webでは上司と労務MLをどちらも宛先（To）に自動設定します。
+            全員のメールアドレスが受信者全員に表示されます。
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-2">

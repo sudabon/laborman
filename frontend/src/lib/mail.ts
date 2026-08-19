@@ -8,13 +8,7 @@ export type MailCreatedRequest = {
   end_mail_body?: string | null;
 };
 
-export type MailtoParams = {
-  to: string[];
-  cc?: string[];
-  bcc?: string[];
-  subject: string;
-  body: string;
-};
+export const OUTLOOK_WEB_COMPOSE_URL = "https://outlook.office.com/mail/deeplink/compose";
 
 export const workStyleLabels: Record<WorkStyle, string> = {
   office: "オフィス",
@@ -40,22 +34,23 @@ export function hasRequiredRecipients(settings: Pick<MailSettings, "boss_email" 
   return Boolean(settings.boss_email.trim() && settings.labor_ml_email.trim());
 }
 
-export function buildMailtoUrl(params: MailtoParams): string {
-  const to = params.to.map((email) => encodeURIComponent(email)).join(",");
-  const query: string[] = [];
+function encodeRecipients(recipients: string[]): string {
+  return recipients.map((email) => encodeURIComponent(email)).join(",");
+}
 
-  if (params.cc && params.cc.length > 0) {
-    query.push(`cc=${params.cc.map((email) => encodeURIComponent(email)).join(",")}`);
-  }
+export function getOutlookToRecipients(draft: Pick<MailDraft, "to" | "cc" | "bcc">): string[] {
+  return [...draft.to, ...draft.cc, ...draft.bcc];
+}
 
-  if (params.bcc && params.bcc.length > 0) {
-    query.push(`bcc=${params.bcc.map((email) => encodeURIComponent(email)).join(",")}`);
-  }
+export function buildOutlookComposeUrl(draft: MailDraft): string {
+  const outlookToRecipients = getOutlookToRecipients(draft);
+  const query = [
+    `to=${encodeRecipients(outlookToRecipients)}`,
+    `subject=${encodeURIComponent(draft.subject)}`,
+    `body=${encodeURIComponent(draft.body)}`,
+  ];
 
-  query.push(`subject=${encodeURIComponent(params.subject)}`);
-  query.push(`body=${encodeURIComponent(params.body)}`);
-
-  return `mailto:${to}?${query.join("&")}`;
+  return `${OUTLOOK_WEB_COMPOSE_URL}?${query.join("&")}`;
 }
 
 export function renderTemplate(template: string, values: Record<string, string>): string {

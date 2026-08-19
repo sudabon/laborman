@@ -187,7 +187,9 @@ export function TodayReport({
         <aside className="grid gap-4 rounded-lg border border-border bg-card p-4">
           <div>
             <h2 className="text-lg font-semibold">メール作成</h2>
-            <p className="mt-1 text-sm text-muted-foreground">ステータスはメール作成済みまで記録します。</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Outlook on the webの作成画面を開いた時点まで記録します。
+            </p>
           </div>
           <div className="grid gap-2">
             <Button
@@ -195,7 +197,7 @@ export function TodayReport({
               disabled={!recipientsReady || !report?.start_time || busy !== null}
             >
               <Mail aria-hidden="true" className="h-4 w-4" />
-              Outlookで始業メールを作成
+              Outlook on the webで始業メールを作成
             </Button>
             <label className="flex items-start gap-2 rounded-md border border-border px-3 py-2 text-sm">
               <input
@@ -205,7 +207,7 @@ export function TodayReport({
                 checked={Boolean(sentConfirmations[startConfirmationKey])}
                 onChange={(event) => onToggleConfirmation(startConfirmationKey, event.target.checked)}
               />
-              <span>Outlookで送信しました（自己申告）</span>
+              <span>Outlook on the webで送信しました（自己申告・自動確認ではありません）</span>
             </label>
           </div>
           <div className="grid gap-2">
@@ -215,7 +217,7 @@ export function TodayReport({
               disabled={!recipientsReady || !report?.end_time || busy !== null}
             >
               <Mail aria-hidden="true" className="h-4 w-4" />
-              Outlookで終業メールを作成
+              Outlook on the webで終業メールを作成
             </Button>
             <label className="flex items-start gap-2 rounded-md border border-border px-3 py-2 text-sm">
               <input
@@ -225,7 +227,7 @@ export function TodayReport({
                 checked={Boolean(sentConfirmations[endConfirmationKey])}
                 onChange={(event) => onToggleConfirmation(endConfirmationKey, event.target.checked)}
               />
-              <span>Outlookで送信しました（自己申告）</span>
+              <span>Outlook on the webで送信しました（自己申告・自動確認ではありません）</span>
             </label>
           </div>
         </aside>
