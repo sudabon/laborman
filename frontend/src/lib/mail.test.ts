@@ -6,6 +6,7 @@ import {
   buildOutlookComposeUrl,
   getOutlookToRecipients,
   hasRequiredRecipients,
+  nextWorkStyleLabel,
   OUTLOOK_WEB_COMPOSE_URL,
   renderTemplate,
 } from "./mail";
@@ -148,6 +149,27 @@ describe("mail utilities", () => {
     expect(draft.body).toContain("お疲れ様です。本日、終業しました。");
     expect(draft.body).toContain("よろしくお願いいたします。");
     expect(draft.body).not.toContain("勤務時間: 9時間30分");
+  });
+
+  it("picks next work style from the weekday of the report date", () => {
+    // 2026-10-05 は月曜日
+    expect(nextWorkStyleLabel(new Date(2026, 9, 5))).toBe("リモート");
+    expect(nextWorkStyleLabel(new Date(2026, 9, 6))).toBe("オフィス");
+    expect(nextWorkStyleLabel(new Date(2026, 9, 7))).toBe("リモート");
+    expect(nextWorkStyleLabel(new Date(2026, 9, 8))).toBe("リモート");
+    expect(nextWorkStyleLabel(new Date(2026, 9, 9))).toBe("オフィス");
+    expect(nextWorkStyleLabel(new Date(2026, 9, 10))).toBe("");
+  });
+
+  it("expands next_work_style in end mail templates", () => {
+    const tuesdayReport = { ...report, work_date: "2026-10-06" };
+    const draft = buildMailDraft(
+      "end",
+      { ...settings, end_footer_template: "翌営業日は{{next_work_style}}にて作業予定です。" },
+      tuesdayReport,
+    );
+
+    expect(draft.body).toContain("翌営業日はオフィスにて作業予定です。");
   });
 
   it("detects missing required recipients", () => {

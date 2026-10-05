@@ -15,6 +15,20 @@ export const workStyleLabels: Record<WorkStyle, string> = {
   remote: "リモート",
 };
 
+// 本日の曜日（0=日曜）から翌営業日の勤務区分を決める
+const nextWorkStyleByWeekday: Record<number, WorkStyle> = {
+  1: "remote",
+  2: "office",
+  3: "remote",
+  4: "remote",
+  5: "office",
+};
+
+export function nextWorkStyleLabel(date: Date): string {
+  const workStyle = nextWorkStyleByWeekday[date.getDay()];
+  return workStyle ? workStyleLabels[workStyle] : "";
+}
+
 export const statusLabels = {
   not_started: "未報告",
   start_recorded: "始業記録済み",
@@ -65,6 +79,7 @@ function templateValues(report: WorkReport): Record<string, string> {
     end_time: formatTime(report.end_time),
     work_duration: formatDuration(report.work_duration_minutes),
     work_style: workStyleLabels[report.work_style],
+    next_work_style: nextWorkStyleLabel(workDate),
     note: report.note || "",
   };
 }

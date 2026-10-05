@@ -18,6 +18,7 @@ from app.schemas import (
     RecordEventRequest,
     ReportStatus,
     WorkReportUpdate,
+    WorkStyle,
 )
 
 
@@ -59,10 +60,18 @@ def upsert_mail_settings(db: Session, data: MailSettingsBase) -> MailSettings:
     return settings
 
 
+# 曜日（0=月曜）ごとの勤務区分の初期値。月・水はオフィス、それ以外はリモート
+OFFICE_WEEKDAYS = {0, 2}
+
+
+def default_work_style(work_date: date) -> WorkStyle:
+    return "office" if work_date.weekday() in OFFICE_WEEKDAYS else "remote"
+
+
 def get_or_create_report(db: Session, work_date: date) -> WorkReport:
     report = db.scalar(select(WorkReport).where(WorkReport.work_date == work_date))
     if report is None:
-        report = WorkReport(work_date=work_date)
+        report = WorkReport(work_date=work_date, work_style=default_work_style(work_date))
         db.add(report)
         db.commit()
         db.refresh(report)

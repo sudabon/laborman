@@ -144,3 +144,22 @@ def test_end_record_without_start_keeps_duration_unknown(client: TestClient) -> 
     assert payload["status"] == "end_recorded"
     assert payload["start_time"] is None
     assert payload["work_duration_minutes"] is None
+
+
+@pytest.mark.parametrize(
+    ("work_date", "expected"),
+    [
+        ("2026-10-05", "office"),  # 月
+        ("2026-10-06", "remote"),  # 火
+        ("2026-10-07", "office"),  # 水
+        ("2026-10-08", "remote"),  # 木
+        ("2026-10-09", "remote"),  # 金
+    ],
+)
+def test_new_report_work_style_defaults_by_weekday(
+    client: TestClient, work_date: str, expected: str
+) -> None:
+    response = client.get(f"/api/work-reports/{work_date}")
+
+    assert response.status_code == 200
+    assert response.json()["work_style"] == expected

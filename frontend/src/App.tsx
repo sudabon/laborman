@@ -134,6 +134,13 @@ export default function App() {
     setView("today");
   };
 
+  const openToday = () => {
+    const now = new Date();
+    setSelectedDate(now);
+    setMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    setView("today");
+  };
+
   const navItems: { id: View; label: string; icon: typeof ClipboardList }[] = [
     { id: "today", label: "本日の報告", icon: ClipboardList },
     { id: "calendar", label: "カレンダー", icon: CalendarDays },
@@ -155,7 +162,7 @@ export default function App() {
                 <Button
                   key={item.id}
                   variant={view === item.id ? "default" : "outline"}
-                  onClick={() => setView(item.id)}
+                  onClick={() => (item.id === "today" ? openToday() : setView(item.id))}
                   className={cn("justify-start", view === item.id && "shadow-sm")}
                 >
                   <Icon aria-hidden="true" className="h-4 w-4" />
@@ -196,11 +203,7 @@ export default function App() {
             reports={monthReports}
             onMonthChange={setMonth}
             onSelectDate={selectDateFromCalendar}
-            onOpenToday={() => {
-              setSelectedDate(today);
-              setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-              setView("today");
-            }}
+            onOpenToday={openToday}
           />
         ) : null}
 
