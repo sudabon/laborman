@@ -1,0 +1,38 @@
+[project]
+name = "laborman-agent"
+version = "0.1.0"
+description = "Host-side CLI that imports HR attendance mail from Outlook on the web into laborman"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "jpholiday>=1.0.0",
+    "playwright>=1.55.0",
+]
+
+[project.scripts]
+laborman-agent = "laborman_agent.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.1.0",
+    "pytest>=9.0.3",
+    "ruff>=0.15.16",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["laborman_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["jpholiday"]
+ignore_missing_imports = true

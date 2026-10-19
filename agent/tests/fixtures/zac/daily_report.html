@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>勤怠・工数管理 | tribeck2 (mock)</title>
+    <style>
+      .hidden { display: none; }
+      zac-option { display: block; padding: 2px; cursor: pointer; }
+      /* 実画面と同じく、選択欄には枠と大きさがある（空でもクリックできる） */
+      zac-entity-dropdown,
+      zac-entity-dropdown-v2,
+      zac-entity-select-v2 {
+        display: inline-block;
+        min-width: 160px;
+        min-height: 20px;
+        border: 1px solid #ccc;
+      }
+      zac-entity-select-v2.hidden,
+      zac-entity-dropdown-v2.hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      zac の業務報告画面（/b/daily_report/{date}）の静的モック。2026-10-14 に Claude in Chrome で確認した構造を再現する。
+      状態はテストが window.__ZAC__ に入れる：
+        { confirmed, rows: [...], workKinds: [...], projects: [{code, name, sales: [{name, closed}]}], saveShows }
+      押された回数を window.__CLICKS__ に記録する（register / save / confirm）。
+    -->
+    <div id="header">
+      <span id="status"></span>
+      <!-- 実画面では DOM 上に「保存」が 2 つあり、片方は見えない -->
+      <button type="button" class="basic zac-button--medium" style="display: none"> 保存 </button>
+      <button type="button" class="basic zac-button--medium" id="save"> <div class="zac-button-label">保存</div> </button>
+      <button type="button" class="success zac-button--medium" id="confirm">確定</button>
+    </div>
+    <div id="toast" class="hidden"></div>
+    <section id="kintai">
+      <label>出社時刻</label>
+      <zac-time-duration-input formcontrolname="TimeIn"><input class="zac-time-duration-input-element" /></zac-time-duration-input>
+      <label>退社時刻</label>
+      <zac-time-duration-input formcontrolname="TimeOut"><input class="zac-time-duration-input-element" /></zac-time-duration-input>
+      <label>休憩</label>
+      <zac-time-duration-input formcontrolname="TimeBreak"><input class="zac-time-duration-input-element" value="1:00" /></zac-time-duration-input>
+      <label>休憩（22～24時）</label>
+      <zac-time-duration-input formcontrolname="TimeBreak3"><input class="zac-time-duration-input-element" /></zac-time-duration-input>
+      <label>休憩（24～29時）</label>
+      <zac-time-duration-input formcontrolname="TimeBreak4"><input class="zac-time-duration-input-element" /></zac-time-duration-input>
+      <zac-textarea formcontrolname="Memo"><textarea></textarea></zac-textarea>
+    </section>
+    <section id="work">
+      <button type="button" class="zac-button--medium" id="register-open">作業登録</button>
+      <table><tbody id="rows"></tbody></table>
+      <p id="empty">作業が登録されていません</p>
+    </section>
+    <div class="cdk-overlay-container" id="overlay"></div>
+    <script>
+      const state = Object.assign(
+        { confirmed: false, rows: [], workKinds: [], projects: [], saveShows: "保存しました" },
+        window.__ZAC__ || {},
+      );
+      window.__CLICKS__ = { register: 0, save: 0, confirm: 0 };
+      const overlay = document.getElementById("overlay");
+      const rowsEl = document.getElementById("rows");
+      const pane = (html) => {
+        const div = document.createElement("div");
+        div.className = "cdk-overlay-pane";
+        div.innerHTML = html;
+        overlay.appendChild(div);
+        return div;
+      };
+      const closeMenus = () => overlay.querySelectorAll(".menu").forEach((m) => m.remove());
+
+      function resetKintai() {
+        const initial = { TimeIn: "", TimeOut: "", TimeBreak: "1:00", TimeBreak3: "", TimeBreak4: "" };
+        for (const [name, value] of Object.entries(initial)) {
+          document.querySelector(`zac-time-duration-input[formcontrolname=${name}] input`).value = value;
+        }
+      }
+
+      function renderRows() {
+        rowsEl.replaceChildren();
+        for (const row of state.rows) {
+          const tr = document.createElement("tr");
+          tr.className = "zac-row cdk-row data-row";
+          tr.innerText = `${row.workKind} / #${row.code} / ${row.sales} / ${row.time} / ${row.memo}`;
+          rowsEl.appendChild(tr);
+        }
+        document.getElementById("empty").classList.toggle("hidden", state.rows.length > 0);
+      }
+      if (state.confirmed) {
+        document.getElementById("status").innerText = "日報確定済";
+        document.getElementById("register-open").remove();
+        document.getElementById("save").remove();
+        document.getElementById("confirm").remove();
+      }
+      renderRows();
+
+      function openMenu(options, onPick, extraClass = "") {
+        closeMenus();
+        const menu = pane(`<div class="menu overlay-panel ${extraClass}"><div class="entity-select-menu-container"></div></div>`);
+        menu.classList.add("menu");
+        const container = menu.querySelector(".entity-select-menu-container");
+        // optionsDelayMs があれば、実画面のサインイン直後のように最初は空の項目だけを出し、あとから読み込む
+        const delay = state.optionsDelayMs || 0;
+        state.optionsDelayMs = 0;
+        const fill = (items) => {
+          container.innerHTML = "";
+          for (const option of items) appendOption(option);
+        };
+        const appendOption = (option) => {
+          const el = document.createElement("zac-option");
+          el.innerHTML = typeof option === "string" ? `<div>${option}</div>` : option.html;
+          el.addEventListener("click", () => {
+            closeMenus();
+            onPick(typeof option === "string" ? option : option.value);
+          });
+          container.appendChild(el);
+        };
+        if (delay > 0) {
+          fill([""]);
+          setTimeout(() => fill(["", ...options]), delay);
+        } else {
+          fill(["", ...options]);
+        }
+      }
+
+      document.getElementById("register-open").addEventListener("click", () => {
+        const dlg = pane(`
+          <div class="dialog">
+            <h2>作業登録</h2>
+            <zac-entity-dropdown formcontrolname="IdSagyouNaiyou" tabindex="0"><span class="value"></span></zac-entity-dropdown>
+            <zac-entity-select-v2 formcontrolname="IdProject" class="hidden"><input class="zac-input-element" /></zac-entity-select-v2>
+            <zac-entity-dropdown-v2 formcontrolname="IdProjectSales" class="hidden" tabindex="0"><span class="value"></span></zac-entity-dropdown-v2>
+            <zac-time-duration-input formcontrolname="TimeRequired"><input class="zac-time-duration-input-element" /></zac-time-duration-input>
+            <zac-time-duration-input formcontrolname="TimeMove"><input class="zac-time-duration-input-element" /></zac-time-duration-input>
+            <zac-textarea formcontrolname="Memo"><textarea></textarea></zac-textarea>
+            <!-- 実画面と同じく、ボタンは class で種類を表し、文字の前後に空白を含む -->
+            <button type="button" class="success zac-button--medium register"> <div class="zac-button-content"><div class="zac-button-label">登録</div></div> </button>
+            <button type="button" class="basic zac-button--medium cancel"> <div class="zac-button-content"><div class="zac-button-label">キャンセル</div></div> </button>
+          </div>`);
+        const value = { workKind: "", project: null, sales: "" };
+        const kindEl = dlg.querySelector("[formcontrolname=IdSagyouNaiyou]");
+        const projectEl = dlg.querySelector("[formcontrolname=IdProject]");
+        const projectInput = projectEl.querySelector("input");
+        const salesEl = dlg.querySelector("[formcontrolname=IdProjectSales]");
+        kindEl.addEventListener("click", () =>
+          openMenu(state.workKinds, (picked) => {
+            value.workKind = picked;
+            kindEl.querySelector(".value").innerText = picked;
+            projectEl.classList.remove("hidden");
+          }),
+        );
+        const showProjects = () => {
+          const query = projectInput.value.trim();
+          const projects = state.projects.filter((p) => !query || `${p.code} ${p.name}`.includes(query));
+          openMenu(
+            projects.map((p) => ({ html: `<div><zac-highlight-text>${p.code} ${p.name}</zac-highlight-text></div>`, value: p })),
+            (picked) => {
+              projectInput.value = `${picked.code} ${picked.name}`;
+              salesEl.classList.remove("hidden");
+              // 実画面と同じく、売上項目は案件を選んだあとの通信の応答で入れ替わる。応答までは前の案件の選択肢が残る
+              setTimeout(() => {
+                fetch(`https://zac.mock.test/tribeck2/b/api/v2/reference/daily_report_project_sales?project=${picked.code}`)
+                  .then(() => {
+                    value.project = picked;
+                    value.sales = "";
+                    salesEl.querySelector(".value").innerText = "";
+                  })
+                  .catch(() => {});
+              }, 400);
+            },
+          );
+        };
+        projectInput.addEventListener("focus", showProjects);
+        projectInput.addEventListener("input", showProjects);
+        salesEl.addEventListener("click", () => {
+          if (!value.project) {
+            openMenu([], () => {});
+            return;
+          }
+          openMenu(
+            value.project.sales.map((s) => ({
+              html: `<div>${s.name}</div>${s.closed ? '<span class="badge">売上計上済</span>' : ""}`,
+              value: s.name,
+            })),
+            (picked) => {
+              value.sales = picked;
+              salesEl.querySelector(".value").innerText = picked;
+            },
+          );
+        });
+        dlg.querySelector(".register").addEventListener("click", () => {
+          window.__CLICKS__.register += 1;
+          const time = dlg.querySelector("[formcontrolname=TimeRequired] input").value;
+          if (!value.workKind || !value.project || !value.sales || !time) return;
+          state.rows.push({
+            workKind: value.workKind,
+            code: value.project.code,
+            sales: value.sales,
+            time,
+            memo: dlg.querySelector("[formcontrolname=Memo] textarea").value,
+          });
+          renderRows();
+          // 実画面では明細を登録すると勤怠欄がサーバの値（未保存なら空・休憩 1:00）に入れ直される
+          resetKintai();
+          closeMenus();
+          dlg.remove();
+        });
+        dlg.querySelector(".cancel").addEventListener("click", () => {
+          closeMenus();
+          dlg.remove();
+        });
+      });
+
+      document.getElementById("save")?.addEventListener("click", () => {
+        window.__CLICKS__.save += 1;
+        // 実画面と同じく、保存は POST …/daily_reports/{date}/save の通信で行う（テストが route で応答を決める）
+        fetch("https://zac.mock.test/tribeck2/b/api/v2/daily_report/daily_reports/2026-10-13/save", { method: "POST" }).catch(() => {});
+        if (state.saveShows) {
+          setTimeout(() => {
+            const toast = document.getElementById("toast");
+            toast.innerText = state.saveShows;
+            toast.classList.remove("hidden");
+          }, 200);
+        }
+      });
+      document.getElementById("confirm")?.addEventListener("click", () => {
+        window.__CLICKS__.confirm += 1;
+      });
+    </script>
+  </body>
+</html>

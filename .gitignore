@@ -144,6 +144,8 @@ vite.config.ts.timestamp-*
 
 # Python
 **/__pycache__
+.pytest_cache
+.venv
 backend/public/*
 
 # macOS
@@ -158,6 +160,7 @@ backend/public/*
 .codex/
 .claude/
 .cursor/
+.agents/
 
 # Cursor
 .cursorrules

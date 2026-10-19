@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
+from app.repositories import ConflictError, InvalidInputError, NotFoundError
 from app.routes import router
 
 settings = get_settings()
@@ -19,6 +20,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+
+
+@app.exception_handler(ConflictError)
+async def conflict_handler(request: Request, exc: ConflictError) -> JSONResponse:
+    return JSONResponse(
+        status_code=409,
+        content={"detail": {"message": exc.message, "conflicts": exc.conflicts}},
+    )
+
+
+@app.exception_handler(InvalidInputError)
+async def invalid_input_handler(
+    request: Request, exc: InvalidInputError
+) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+
+@app.exception_handler(NotFoundError)
+async def not_found_error_handler(request: Request, exc: NotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
 app.mount("/", StaticFiles(directory="./public", html=True), name="public")
 
 

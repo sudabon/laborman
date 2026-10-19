@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change add-labor-report-mailto. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: 宛先設定
 
 システムは、設定画面で上司メールアドレス・労務MLメールアドレス・CC・BCC を保存・編集できる手段を提供しなければならない（SHALL）。
@@ -19,7 +21,7 @@ TBD - created by archiving change add-labor-report-mailto. Update Purpose after 
 
 ### Requirement: メールテンプレート設定
 
-システムは、始業報告・終業報告それぞれの件名テンプレートと本文テンプレート、ならびに終業報告のヘッダテンプレート（定型挨拶）・フッタテンプレート（定型結び）を保存・編集できる手段を提供しなければならない（SHALL）。テンプレートは `{{date}}`・`{{start_time}}`・`{{end_time}}`・`{{work_duration}}`・`{{work_style}}`・`{{note}}` などの変数を含められる。終業メール全文はヘッダ＋本文＋フッタを連結して構成する。
+システムは、始業報告・終業報告それぞれの件名テンプレートと本文テンプレート、ならびに終業報告のヘッダテンプレート（定型挨拶）・フッタテンプレート（定型結び）を保存・編集できる手段を提供しなければならない（SHALL）。テンプレートは `{{date}}`・`{{start_time}}`・`{{end_time}}`・`{{work_duration}}`・`{{work_style}}`・`{{note}}`・`{{tasks}}`・`{{tasks_by_job}}`・`{{breaks}}`・`{{task_total}}` などの変数を含められる。終業メール全文はヘッダ＋本文＋フッタを連結して構成する。既定の終業本文テンプレートは `{{tasks}}` を含まなければならない（SHALL）。保存済みの設定のテンプレートは、変数の追加を理由に自動で書き換えてはならない（MUST NOT）。設定画面は「`{{tasks}}` を追加すると業務明細が本文に入ります」という案内を表示しなければならない（SHALL）。
 
 #### Scenario: 始業・終業テンプレートを保存する
 
@@ -34,7 +36,12 @@ TBD - created by archiving change add-labor-report-mailto. Update Purpose after 
 #### Scenario: 既定テンプレートの提供
 
 - **WHEN** ユーザーがテンプレートを未設定のまま設定画面を開く
-- **THEN** システムは DESIGN のテンプレート（例: 件名「【始業報告】{{date}}」、終業ヘッダ「お疲れ様です。本日、終業しました。」、終業フッタ「よろしくお願いいたします。」）を既定値として表示する
+- **THEN** システムは DESIGN のテンプレート（例: 件名「【始業報告】{{date}}」、終業ヘッダ「お疲れ様です。本日、終業しました。」、終業フッタ「よろしくお願いいたします。」）と、`{{tasks}}` を含む終業本文を既定値として表示する
+
+#### Scenario: 既存の設定は書き換えない
+
+- **WHEN** `{{tasks}}` を含まない終業本文テンプレートが保存済みの環境で本機能を導入する
+- **THEN** システムは保存済みテンプレートを変更せず、設定画面で `{{tasks}}` の追加方法を案内する
 
 ### Requirement: 宛先未設定時のガード
 
@@ -44,4 +51,3 @@ TBD - created by archiving change add-labor-report-mailto. Update Purpose after 
 
 - **WHEN** 宛先が未設定の状態でユーザーが始業・終業メール作成を行おうとする
 - **THEN** システムはメール作成ボタンを無効化するか、設定画面への誘導を表示し、Outlook を起動しない
-

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mail - Outlook (mock)</title>
+  </head>
+  <body>
+    <!--
+      Outlook on the web の静的モック。メールはテストが window.__MAILS__ に入れる。
+      検索は OWA と同様に記号（[ ]）を無視した部分一致で、該当しないメールも返すことがある。
+    -->
+    <input id="topSearchInput" aria-label="検索" />
+    <div id="results" role="listbox" aria-label="メッセージ一覧"></div>
+    <div id="reading"></div>
+    <script>
+      const mails = window.__MAILS__ || [];
+      const results = document.getElementById("results");
+      const reading = document.getElementById("reading");
+      const strip = (text) => text.replace(/[\[\]]/g, "");
+
+      function render(items) {
+        results.replaceChildren();
+        for (const [index, mail] of items.entries()) {
+          const option = document.createElement("div");
+          option.setAttribute("role", "option");
+          option.innerHTML =
+            `<span class="sender">${mail.from}</span>` +
+            `<span class="subject">${mail.subject}</span>` +
+            `<span class="preview">${mail.preview || ""}</span>`;
+          option.addEventListener("click", () => {
+            setTimeout(() => {
+              reading.innerHTML = `<div aria-label="メッセージ本文"></div>`;
+              reading.firstElementChild.innerText = mail.body;
+            }, 100);
+          });
+          results.appendChild(option);
+          // __REPLACE_ON_READ__：2 行目を読んだ瞬間に一覧を検索結果へ置き換える（読み取り中の再描画）
+          if (window.__REPLACE_ON_READ__ && items === inbox && index === 1) {
+            const text = option.innerText;
+            Object.defineProperty(option, "innerText", {
+              get() {
+                if (!window.__REPLACED__) {
+                  window.__REPLACED__ = true;
+                  render(mails);
+                }
+                return text;
+              },
+            });
+          }
+        }
+      }
+
+      // 実際の OWA は検索ボックスを表示したあとも初期化を続け、その間の入力を捨てることがある。
+      // __CLEAR_FIRST_SEARCH__：最初の検索で入力を消す / __IGNORE_FIRST_ENTER__：最初の Enter を無視する
+      let firstSearch = true;
+      document.getElementById("topSearchInput").addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        if (firstSearch) {
+          firstSearch = false;
+          if (window.__CLEAR_FIRST_SEARCH__) {
+            event.target.value = "";
+            return;
+          }
+          if (window.__IGNORE_FIRST_ENTER__) return;
+        }
+        const query = event.target.value;
+        window.__LAST_QUERY__ = query;
+        const subject = /subject:"([^"]*)"/.exec(query);
+        const keyword = strip(subject ? subject[1] : query);
+        results.replaceChildren();
+        setTimeout(() => render(mails.filter((mail) => strip(mail.subject).includes(keyword) || mail.loose)), 300);
+      });
+
+      const inbox = window.__INBOX__ || [];
+      render(inbox);
+    </script>
+  </body>
+</html>

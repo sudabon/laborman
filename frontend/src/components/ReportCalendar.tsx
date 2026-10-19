@@ -12,7 +12,7 @@ import {
 } from "@/lib/date";
 import { statusLabels } from "@/lib/mail";
 import { cn } from "@/lib/utils";
-import type { ReportStatus, WorkReport } from "@/types";
+import type { ReportStatus, WorkReport, ZacStatus } from "@/types";
 
 type ReportCalendarProps = {
   month: Date;
@@ -31,8 +31,22 @@ const shortStatusLabels: Record<ReportStatus, string> = {
   end_mail_created: "メール作成済み",
 };
 
-function statusTone(status: ReportStatus, isIncompletePast: boolean): string {
+const zacLabels: Record<ZacStatus | "unregistered", string> = {
+  registered: "zac済",
+  needs_action: "要対応",
+  unregistered: "zac未登録",
+};
+
+const zacTones: Record<ZacStatus | "unregistered", string> = {
+  registered: "text-secondary",
+  needs_action: "font-semibold text-destructive",
+  unregistered: "font-semibold text-accent-foreground",
+};
+
+function statusTone(status: ReportStatus, isIncompletePast: boolean, zacUnregisteredPast = false): string {
   if (isIncompletePast) return "border-destructive/40 bg-destructive/10 text-destructive";
+  // 報告は済んでいるが zac に未登録の過去の平日
+  if (zacUnregisteredPast) return "border-accent bg-accent/15 text-accent-foreground";
   if (status === "end_mail_created") return "border-secondary/40 bg-secondary/10 text-secondary";
   if (status === "end_recorded") return "border-primary/40 bg-primary/10 text-primary";
   if (status === "start_mail_created") return "border-accent/50 bg-accent/15 text-accent-foreground";
@@ -50,18 +64,23 @@ export function ReportCalendar({
 }: ReportCalendarProps) {
   const reportByDate = new Map(reports.map((report) => [report.work_date, report]));
 
-  const getStatus = (date: Date): ReportStatus => reportByDate.get(toISODate(date))?.status ?? "not_started";
-
   function StatusDayButton(props: DayButtonProps) {
     const dayDate = props.day.date;
-    const status = getStatus(dayDate);
+    const report = reportByDate.get(toISODate(dayDate));
+    const status = report?.status ?? "not_started";
     const reportingDay = isReportingWeekday(dayDate);
-    const incompletePast = isPastWeekday(dayDate) && status !== "end_mail_created";
+    const pastWeekday = isPastWeekday(dayDate);
+    const incompletePast = pastWeekday && status !== "end_mail_created";
+    // zac 状態。休暇の日は zac に登録しないため、未登録として扱わない
+    const onLeave = report?.attendance_kind === "leave";
+    const zacState: ZacStatus | "unregistered" | null =
+      report?.zac_status ?? (pastWeekday && !onLeave && !report?.zac_registered_at ? "unregistered" : null);
+    const zacUnregisteredPast = zacState === "unregistered" || zacState === "needs_action";
     const selected = isSameDate(dayDate, selectedDate);
     const outside = Boolean(props.modifiers.outside);
     const className = cn(
       "flex h-20 w-full flex-col items-start justify-between rounded-md border px-2 py-2 text-left text-xs transition-colors",
-      statusTone(status, incompletePast),
+      statusTone(status, incompletePast, zacUnregisteredPast),
       selected && "ring-2 ring-primary ring-offset-1",
       outside && "opacity-45",
       props.className,
@@ -74,12 +93,17 @@ export function ReportCalendar({
         className={className}
         aria-label={
           reportingDay
-            ? `${dayDate.toLocaleDateString("ja-JP")} ${statusLabels[status]}`
+            ? [dayDate.toLocaleDateString("ja-JP"), statusLabels[status], zacState ? zacLabels[zacState] : ""]
+                .filter(Boolean)
+                .join(" ")
             : `${dayDate.toLocaleDateString("ja-JP")} 報告不要`
         }
       >
         <span className="text-sm font-semibold">{dayDate.getDate()}</span>
-        <span className="leading-tight">{reportingDay ? shortStatusLabels[status] : ""}</span>
+        <span className="grid leading-tight">
+          <span>{reportingDay ? shortStatusLabels[status] : ""}</span>
+          {reportingDay && zacState ? <span className={zacTones[zacState]}>{zacLabels[zacState]}</span> : null}
+        </span>
       </button>
     );
   }
@@ -137,6 +161,9 @@ export function ReportCalendar({
         ))}
         <li className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">
           過去日の未完了
+        </li>
+        <li className="rounded-md border border-accent bg-accent/15 px-3 py-2 text-accent-foreground">
+          zac 未登録・要対応の過去日
         </li>
       </ul>
     </section>

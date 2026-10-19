@@ -8,9 +8,24 @@ import { TodayReport } from "@/components/TodayReport";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { toISODate } from "@/lib/date";
-import { buildMailDraft } from "@/lib/mail";
+import { ensureDefaultBreak } from "@/lib/defaultBreak";
+import { buildMailDraft, EMPTY_WORK_DETAILS } from "@/lib/mail";
 import { cn } from "@/lib/utils";
-import type { MailDraft, MailKind, MailSettings, WorkReport, WorkReportUpdate } from "@/types";
+import type {
+  AttendanceInput,
+  AutomationSettings,
+  AutomationSettingsInput,
+  Job,
+  JobCodeChange,
+  JobCreate,
+  JobUpdate,
+  MailDraft,
+  MailKind,
+  MailSettings,
+  WorkDetails,
+  WorkReport,
+  WorkReportUpdate,
+} from "@/types";
 
 type View = "today" | "calendar" | "settings";
 
@@ -35,6 +50,8 @@ export default function App() {
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [settings, setSettings] = useState<MailSettings | null>(null);
   const [report, setReport] = useState<WorkReport | null>(null);
+  const [details, setDetails] = useState<WorkDetails>(EMPTY_WORK_DETAILS);
+  const [automationSettings, setAutomationSettings] = useState<AutomationSettings | null>(null);
   const [monthReports, setMonthReports] = useState<WorkReport[]>([]);
   const [draft, setDraft] = useState<MailDraft | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -51,6 +68,19 @@ export default function App() {
     setReport(await api.getReport(selectedISODate));
   }, [selectedISODate]);
 
+  // 業務明細（タスク・休憩）と、表示・テンプレート展開に使うジョブマスタ（無効化分も含む）
+  const refreshDetails = useCallback(async () => {
+    const [tasks, breaks, jobs, salesItems, workKinds, zacDefaults] = await Promise.all([
+      api.getTasks(selectedISODate),
+      api.getBreaks(selectedISODate),
+      api.getJobs(),
+      api.getSalesItems(),
+      api.getWorkKinds(),
+      api.getZacTaskDefaults(),
+    ]);
+    setDetails({ tasks, breaks, jobs, salesItems, workKinds, zacDefaults });
+  }, [selectedISODate]);
+
   const refreshMonthReports = useCallback(async () => {
     setMonthReports(await api.getMonthReports(month.getFullYear(), month.getMonth() + 1));
   }, [month]);
@@ -62,6 +92,20 @@ export default function App() {
   useEffect(() => {
     void refreshReport().catch((cause: Error) => setError(cause.message));
   }, [refreshReport]);
+
+  // 勤務日を表示したときだけ既定の休憩を補う（編集後の refreshDetails では補わない）
+  useEffect(() => {
+    void ensureDefaultBreak(selectedISODate)
+      .then(refreshDetails)
+      .catch((cause: Error) => setError(cause.message));
+  }, [refreshDetails, selectedISODate]);
+
+  useEffect(() => {
+    void api
+      .getAutomationSettings()
+      .then(setAutomationSettings)
+      .catch((cause: Error) => setError(cause.message));
+  }, []);
 
   useEffect(() => {
     void refreshMonthReports().catch((cause: Error) => setError(cause.message));
@@ -90,9 +134,17 @@ export default function App() {
   const recordEnd = (payload: WorkReportUpdate) =>
     runApi(() => api.recordEnd(selectedISODate, payload));
 
+  const saveAttendance = (payload: AttendanceInput) =>
+    runApi(() => api.saveAttendance(selectedISODate, payload));
+
+  // zac 連携の実行が終わったら、保存成功日時とカレンダーの状態を取り直す
+  const refreshAfterZacRun = useCallback(async () => {
+    await Promise.all([refreshReport(), refreshMonthReports()]);
+  }, [refreshReport, refreshMonthReports]);
+
   const createMail = async (kind: MailKind, payload: WorkReportUpdate) => {
     if (!settings) return;
-    const { end_mail_body: endMailBody, ...reportUpdate } = payload;
+    const reportUpdate = { note: payload.note, work_style: payload.work_style };
     let currentReport = report;
     if (
       !currentReport ||
@@ -102,8 +154,7 @@ export default function App() {
       currentReport = await api.updateReport(selectedISODate, reportUpdate);
       updateLoadedReport(currentReport);
     }
-    const endBodyCoreOverride = kind === "end" ? endMailBody : undefined;
-    setDraft(buildMailDraft(kind, settings, currentReport, endBodyCoreOverride));
+    setDraft(buildMailDraft(kind, settings, currentReport, details));
     setDialogOpen(true);
   };
 
@@ -118,6 +169,29 @@ export default function App() {
   const saveSettings = async (nextSettings: MailSettings) => {
     setError(null);
     setSettings(await api.saveSettings(nextSettings));
+  };
+
+  const saveAutomationSettings = async (next: AutomationSettingsInput) => {
+    setError(null);
+    setAutomationSettings(await api.saveAutomationSettings(next));
+  };
+
+  const createJob = async (payload: JobCreate): Promise<Job> => {
+    const job = await api.createJob(payload);
+    await refreshDetails();
+    return job;
+  };
+
+  const changeJobCode = async (code: string, payload: JobCodeChange): Promise<Job> => {
+    const job = await api.changeJobCode(code, payload);
+    await refreshDetails();
+    return job;
+  };
+
+  const updateJob = async (code: string, payload: JobUpdate): Promise<Job> => {
+    const job = await api.updateJob(code, payload);
+    await refreshDetails();
+    return job;
   };
 
   const toggleConfirmation = (key: string, checked: boolean) => {
@@ -186,10 +260,14 @@ export default function App() {
             date={selectedDate}
             report={report}
             settings={settings}
+            details={details}
+            onDetailsChanged={refreshDetails}
             sentConfirmations={confirmations}
             onSaveReport={saveReport}
             onRecordStart={recordStart}
             onRecordEnd={recordEnd}
+            onSaveAttendance={saveAttendance}
+            onZacRunFinished={refreshAfterZacRun}
             onCreateMail={createMail}
             onToggleConfirmation={toggleConfirmation}
             onOpenSettings={() => setView("settings")}
@@ -207,7 +285,36 @@ export default function App() {
           />
         ) : null}
 
-        {view === "settings" ? <SettingsPanel settings={settings} onSave={saveSettings} /> : null}
+        {view === "settings" ? (
+          <SettingsPanel
+            settings={settings}
+            onSave={saveSettings}
+            jobs={details.jobs}
+            onCreateJob={createJob}
+            onUpdateJob={updateJob}
+            onChangeJobCode={changeJobCode}
+            salesItems={details.salesItems}
+            workKinds={details.workKinds}
+            onCreateSalesItem={async (jobCode, name) => {
+              await api.createSalesItem(jobCode, { name });
+              await refreshDetails();
+            }}
+            onUpdateSalesItem={async (itemId, payload) => {
+              await api.updateSalesItem(itemId, payload);
+              await refreshDetails();
+            }}
+            onCreateWorkKind={async (name) => {
+              await api.createWorkKind(name);
+              await refreshDetails();
+            }}
+            onUpdateWorkKind={async (name, payload) => {
+              await api.updateWorkKind(name, payload);
+              await refreshDetails();
+            }}
+            automationSettings={automationSettings}
+            onSaveAutomationSettings={saveAutomationSettings}
+          />
+        ) : null}
       </main>
 
       <MailComposeDialog

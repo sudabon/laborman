@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>tribeck2 ログイン (mock)</title>
+  </head>
+  <body>
+    <!-- 2026-10-19 に確認した実画面（/b/auth/login）の構造。Angular のフォームで action 属性はない -->
+    <form novalidate class="ng-untouched ng-pristine ng-invalid">
+      <div class="form-group">
+        <label for="username">ログインID</label>
+        <input type="text" id="username" formcontrolname="Username" required />
+      </div>
+      <div class="form-group">
+        <label for="password">パスワード</label>
+        <input type="password" id="password" formcontrolname="Password" required />
+      </div>
+      <div class="cv-button-container"><button type="submit" class="cv-button"> ログイン </button></div>
+    </form>
+    <script>
+      document.querySelector("form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        window.__LOGIN__ = {
+          id: document.getElementById("username").value,
+          pw: document.getElementById("password").value.length,
+        };
+        // 実画面はサインイン後に元のページへ移動する（サインイン画面は消える）
+        event.target.remove();
+      });
+    </script>
+  </body>
+</html>

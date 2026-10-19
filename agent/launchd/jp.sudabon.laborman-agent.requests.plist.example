@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  laborman の画面の「この日を zac に登録」で記録された依頼を、1 分間隔で拾って実行する（laborman-agent process-requests）。依頼がなければブラウザを起動せずに終わる。
+  USERNAME と uv・リポジトリのパスを環境に合わせて書き換え、~/Library/LaunchAgents/ に置く。
+  導入・解除の手順は docs/SETUP_GUIDE.md を参照。
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>jp.sudabon.laborman-agent.requests</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/USERNAME/.local/bin/uv</string>
+    <string>run</string>
+    <string>--directory</string>
+    <string>/Users/USERNAME/workspace/sudabon/laborman/agent</string>
+    <string>laborman-agent</string>
+    <string>process-requests</string>
+  </array>
+  <key>StartInterval</key><integer>60</integer>
+  <key>StandardOutPath</key><string>/Users/USERNAME/Library/Logs/laborman-agent/requests.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/USERNAME/Library/Logs/laborman-agent/requests.err.log</string>
+</dict>
+</plist>

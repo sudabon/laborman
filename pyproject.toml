@@ -25,4 +25,5 @@ pythonpath = ["backend"]
 [tool.uv.workspace]
 members = [
     "backend",
+    "agent",
 ]

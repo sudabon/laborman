@@ -10,6 +10,8 @@ class Settings(BaseSettings):
         "postgresql+psycopg2://laborman:laborman@localhost:5432/laborman"
     )
     backend_cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # 勤務日の境界（00:00〜翌 06:00）の判定に使うタイムゾーン
+    app_timezone: str = "Asia/Tokyo"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
