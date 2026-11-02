@@ -100,6 +100,16 @@ export default function App() {
       .catch((cause: Error) => setError(cause.message));
   }, [refreshDetails, selectedISODate]);
 
+  // 別のタブやエージェントで追加されたジョブを拾うため、タブに戻ったら業務明細を取り直す
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      void refreshDetails().catch((cause: Error) => setError(cause.message));
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [refreshDetails]);
+
   useEffect(() => {
     void api
       .getAutomationSettings()
@@ -137,10 +147,11 @@ export default function App() {
   const saveAttendance = (payload: AttendanceInput) =>
     runApi(() => api.saveAttendance(selectedISODate, payload));
 
-  // zac 連携の実行が終わったら、保存成功日時とカレンダーの状態を取り直す
+  // zac 連携の実行が終わったら、保存成功日時とカレンダーの状態に加え、
+  // 実行中に取り込まれたジョブ・売上項目・作業内容も取り直す
   const refreshAfterZacRun = useCallback(async () => {
-    await Promise.all([refreshReport(), refreshMonthReports()]);
-  }, [refreshReport, refreshMonthReports]);
+    await Promise.all([refreshReport(), refreshMonthReports(), refreshDetails()]);
+  }, [refreshReport, refreshMonthReports, refreshDetails]);
 
   const createMail = async (kind: MailKind, payload: WorkReportUpdate) => {
     if (!settings) return;

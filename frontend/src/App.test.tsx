@@ -128,3 +128,33 @@ describe("App default break", () => {
     expect(api.createBreak).not.toHaveBeenCalled();
   });
 });
+
+describe("App job list refresh", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(jst("18:30")));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.mocked(api.getJobs).mockImplementation(async () => details.jobs);
+  });
+
+  it("reloads jobs when the tab becomes visible again", async () => {
+    render(<App />);
+    await screen.findByRole("button", { name: "12:00 の休憩を編集" });
+    const callsBefore = vi.mocked(api.getJobs).mock.calls.length;
+
+    // 別のタブや zac の選択肢の取り込みで追加されたジョブ
+    vi.mocked(api.getJobs).mockImplementation(async () => [...details.jobs, makeJob("JOB-C", "新規案件")]);
+    const visibility = vi.spyOn(document, "visibilityState", "get");
+    visibility.mockReturnValue("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(api.getJobs).toHaveBeenCalledTimes(callsBefore);
+
+    visibility.mockReturnValue("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await waitFor(() => expect(vi.mocked(api.getJobs).mock.calls.length).toBeGreaterThan(callsBefore));
+    visibility.mockRestore();
+  });
+});
