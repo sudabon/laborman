@@ -171,7 +171,6 @@ export type AutomationSettings = {
   hr_mail_subject_keyword: string;
   zac_submit_mode: ZacSubmitMode;
   entry_style: EntryStyle;
-  time_unit_minutes: number;
   clip_tolerance_minutes: number;
   gap_policy: GapPolicy;
   default_job_code: string | null;

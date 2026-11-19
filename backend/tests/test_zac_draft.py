@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.zac_draft import (
@@ -13,7 +12,6 @@ from app.zac_draft import (
     JobInfo,
     SalesItemInfo,
     TaskInput,
-    allocate_by_largest_remainder,
     build_zac_draft,
 )
 
@@ -107,10 +105,12 @@ def test_spec_example_duration() -> None:
         (e.work_kind, e.job_code, e.zac_search_text, e.project_name, e.sales_item, e.minutes, e.description)
         for e in result.entries
     ] == [
-        (WORK, "JOB-A", "A社 保守", "A社保守", "保守（2026／10）", 300, "- 設計レビュー\n- 障害調査"),
+        # 丸めずにクリップ後の分数をそのまま入力する（88 + 210 分、90 + 131 分）
+        (WORK, "JOB-A", "A社 保守", "A社保守", "保守（2026／10）", 298, "- 設計レビュー\n- 障害調査"),
         # zac 検索文字列が未設定ならジョブ ID
-        (WORK, "JOB-B", "JOB-B", "社内業務", "社内業務", 210, "- 定例MTG\n- 資料作成"),
+        (WORK, "JOB-B", "JOB-B", "社内業務", "社内業務", 221, "- 定例MTG\n- 資料作成"),
     ]
+    assert sum(e.minutes for e in result.entries) == result.working_minutes
     assert codes(result) == [("TASK_OUTSIDE_ATTENDANCE", "warning")]
     assert result.issues[0].message == "09:00開始のタスクを出勤時刻09:02に切り詰めました"
     assert result.issues[0].ref_id == "t1"
@@ -176,7 +176,7 @@ def test_gap_blocks_registration() -> None:
 
     assert ("UNCOVERED_TIME", "error") in codes(result)
     assert "15:00–15:20 がどのタスクにも休憩にも含まれていません" in [i.message for i in result.issues]
-    # 配分が成立しなくても TOTAL_MISMATCH は重ねない（参考値を返す）
+    # 入力行の合計が実働に足りなくても TOTAL_MISMATCH は重ねない（参考値を返す）
     assert ("TOTAL_MISMATCH", "error") not in codes(result)
     assert result.registrable is False
 
@@ -192,9 +192,9 @@ def test_gap_assigned_to_default_job() -> None:
     assert codes(result) == [("UNCOVERED_TIME", "warning")]
     assert [(e.work_kind, e.job_code, e.minutes) for e in result.entries] == [
         (WORK, "JOB-A", 300),
-        # 160 分と 20 分を最大剰余法で 15 分単位に（合計 480 分）
-        (WORK, "JOB-B", 165),
-        ("社内業務", "JOB-B", 15),
+        (WORK, "JOB-B", 160),
+        # 空き時間 15:00–15:20 の 20 分
+        ("社内業務", "JOB-B", 20),
     ]
     assert result.registrable is True
     assert result.auto_allowed is False
@@ -214,24 +214,32 @@ def test_unknown_default_job_is_error() -> None:
 # ---- 入力行 ----
 
 
-@pytest.mark.parametrize(
-    ("minutes", "target", "expected"),
-    [
-        ({"JOB-A": 298, "JOB-B": 221}, 510, {"JOB-A": 300, "JOB-B": 210}),
-        # 剰余が同じなら分数の大きい順、次にジョブ ID 順
-        ({"JOB-B": 37, "JOB-A": 37}, 75, {"JOB-A": 45, "JOB-B": 30}),
-        ({"JOB-A": 38, "JOB-B": 52}, 90, {"JOB-A": 45, "JOB-B": 45}),
-        ({"JOB-A": 30, "JOB-B": 30}, 60, {"JOB-A": 30, "JOB-B": 30}),
-    ],
-)
-def test_largest_remainder(minutes: dict[str, int], target: int, expected: dict[str, int]) -> None:
-    allocated = allocate_by_largest_remainder(minutes, target, 15)
-    assert allocated == expected
-    assert sum(allocated.values()) == target
+def test_duration_rows_are_not_rounded() -> None:
+    """同じ作業内容・ジョブ・売上項目のタスクをまとめ、分数を丸めずに合算する（実働と一致）。"""
+    meeting = "プロジェクト関連打ち合わせ"
+    tasks = [
+        task("t1", "JOB-A", "", "08:49", "09:30"),
+        task("t2", "JOB-B", "", "09:30", "09:45", work_kind=meeting),
+        task("t3", "JOB-A", "", "09:45", "12:00"),
+        task("t4", "JOB-B", "", "12:00", "12:15"),
+        task("t5", "JOB-A", "", "12:15", "14:00"),
+        task("t6", "JOB-B", "", "15:00", "15:55", work_kind=meeting),
+        task("t7", "JOB-M", "", "15:55", "16:30"),
+        task("t8", "JOB-A", "", "16:30", "19:03"),
+    ]
+    result = draft(
+        attendance=attendance("08:49", "19:03"), tasks=tasks, breaks=[brk("b1", "14:00", "15:00")]
+    )
 
-
-def test_largest_remainder_reports_impossible_allocation() -> None:
-    assert allocate_by_largest_remainder({"JOB-A": 30}, 90, 15) is None
+    assert result.issues == []
+    assert result.working_minutes == 554
+    assert [(e.work_kind, e.job_code, e.minutes) for e in result.entries] == [
+        (WORK, "JOB-A", 41 + 135 + 105 + 153),
+        (meeting, "JOB-B", 15 + 55),
+        (WORK, "JOB-B", 15),
+        (WORK, "JOB-M", 35),
+    ]
+    assert sum(e.minutes for e in result.entries) == 554
 
 
 def test_description_is_deduplicated_and_truncated() -> None:
@@ -429,8 +437,8 @@ def test_draft_api_matches_spec_example(client: TestClient) -> None:
     body = response.json()
     assert body["working_minutes"] == 519
     assert [(e["job_code"], e["sales_item"], e["minutes"]) for e in body["entries"]] == [
-        ("JOB-A", "保守（2026／10）", 300),
-        ("JOB-B", "社内業務", 210),
+        ("JOB-A", "保守（2026／10）", 298),
+        ("JOB-B", "社内業務", 221),
     ]
     assert body["entries"][0]["description"] == "- 設計レビュー\n- 障害調査"
     assert body["entry_style"] == "duration"

@@ -7,8 +7,8 @@
 ## What Changes
 
 - backend が勤務日ごとの zac 登録ドラフト（出退勤・休憩・実働時間・入力行）と検証結果（error / warning / info）を算出する API `GET /api/work-reports/{date}/zac-draft` を追加する。UI とエージェントは同じ結果を使う
-  - タスクの出退勤範囲へのクリップ、空き時間の扱い（`block` / `assign_default_job`）、入力形式（`duration` は丸め単位・最大剰余法で合計を一致させる／`time_range` は時刻順）、休憩 0 件の日はエラー（`BREAK_MISSING`）として zac 登録を中止
-- zac 連携の設定（実行モード・入力形式・丸め単位・許容値・空き時間の扱い・既定ジョブ・内容の最大長）を `automation_settings` に追加し、設定画面で編集できるようにする
+  - タスクの出退勤範囲へのクリップ、空き時間の扱い（`block` / `assign_default_job`）、入力形式（`duration` は丸めずに集計して合計を実働と一致させる／`time_range` は時刻順）、休憩 0 件の日はエラー（`BREAK_MISSING`）として zac 登録を中止
+- zac 連携の設定（実行モード・入力形式・許容値・空き時間の扱い・既定ジョブ・内容の最大長）を `automation_settings` に追加し、設定画面で編集できるようにする
 - zac 連携の実行履歴 `zac_sync_runs` と、保存成功日時 `work_reports.zac_registered_at` を追加する。`status=succeeded` の記録で `zac_registered_at` を設定する
 - エージェントに `run`（人事メール取込→ドラフト→zac 入力の一連の流れ）・`register`・`login zac` を追加し、`doctor` に VPN 到達性を加える
   - zac の既存入力は上書きしない、`error` のある日は保存しない、`warning` のある日は `auto` を `dry_run` に降格、「申請」「承認依頼」は操作しない、保存完了の表示を確認できたときだけ成功とする

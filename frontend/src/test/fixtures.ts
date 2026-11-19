@@ -82,7 +82,6 @@ export const automationSettings: AutomationSettings = {
   hr_mail_subject_keyword: "",
   zac_submit_mode: "dry_run",
   entry_style: "duration",
-  time_unit_minutes: 15,
   clip_tolerance_minutes: 15,
   gap_policy: "block",
   default_job_code: null,

@@ -173,7 +173,6 @@
   "hr_mail_subject_keyword": "[勤怠情報]",      // 人事メールの件名キーワード（空なら取り込まない。既定 ""）
   "zac_submit_mode": "dry_run",                // "dry_run" | "assist" | "auto"（laborman-agent の実行モード）
   "entry_style": "duration",                   // "duration"（ジョブごとの時間）| "time_range"（時刻順）
-  "time_unit_minutes": 15,                     // 丸め単位。1〜60 かつ 60 の約数
   "clip_tolerance_minutes": 15,                // 出退勤からのはみ出しの許容値（0〜120）
   "gap_policy": "block",                       // 空き時間: "block"（エラー）| "assign_default_job"
   "default_job_code": null,                    // 既定ジョブ（assign_default_job では必須。ジョブマスタに存在すること）
@@ -347,7 +346,7 @@ GET /api/work-reports?year=2026&month=6
 }
 ```
 
-- `duration`：「作業内容 × ジョブ × 売上項目」ごとの分数を丸め単位で切り捨て、不足分を剰余の大きい行から 1 単位ずつ配分する（最大剰余法。合計は実働を単位で切り捨てた値）。備考は行のタスクの内容を開始順に「- 内容」の改行区切り（重複は除く）にし、最大長で切り詰める。`zac_search_text` が未設定ならジョブ ID。
+- `duration`：「作業内容 × ジョブ × 売上項目」ごとの分数を丸めずに合算する（合計は実働と一致する）。備考は行のタスクの内容を開始順に「- 内容」の改行区切り（重複は除く）にし、最大長で切り詰める。`zac_search_text` が未設定ならジョブ ID。
 - `time_range`：タスクを時刻順に 1 行ずつ。連続する同じジョブ・同じ内容は結合する。
 - 検証コード：`ATTENDANCE_MISSING`・`ON_LEAVE`・`NO_TASKS`・`TASK_RUNNING`・`TASK_OVERLAP`・`JOB_UNKNOWN`・`JOB_MONTH_MISMATCH`・`WORK_KIND_MISSING`・`SALES_ITEM_MISSING`・`TOTAL_MISMATCH`・`BREAK_MISSING`（error）、`TASK_OUTSIDE_ATTENDANCE`・`UNCOVERED_TIME`（error または warning）、`SALES_ITEM_MONTH_MISMATCH`（warning）、`ALREADY_REGISTERED`（info）。出退勤が未取込・休暇の日は該当 error だけを返し、入力行は空。
 
@@ -464,7 +463,7 @@ GET /api/work-reports?year=2026&month=6
 
 ### PUT `/api/automation-settings`
 
-既定の休憩・人事メールの検索条件・zac 連携の設定を保存（全項目を送る。省略した項目は既定値になる）。空き時間の扱いが `assign_default_job` で既定ジョブがない、既定ジョブがジョブマスタにない、丸め単位が 60 の約数でない場合は 422。前後の空白は除去する。既定の休憩は`HH:MM`（`^[0-2][0-9]:[0-5][0-9]$`、勤務日基準の 00:00〜29:59）で、`default_break_end` は `default_break_start` より後であること（違反は 422）。
+既定の休憩・人事メールの検索条件・zac 連携の設定を保存（全項目を送る。省略した項目は既定値になる）。空き時間の扱いが `assign_default_job` で既定ジョブがない、既定ジョブがジョブマスタにない場合は 422。前後の空白は除去する。既定の休憩は`HH:MM`（`^[0-2][0-9]:[0-5][0-9]$`、勤務日基準の 00:00〜29:59）で、`default_break_end` は `default_break_start` より後であること（違反は 422）。
 
 ```jsonc
 // Request body (AutomationSettingsBase)

@@ -152,7 +152,6 @@ describe("SettingsPanel zac settings", () => {
 
     fireEvent.change(screen.getByLabelText("実行モード"), { target: { value: "assist" } });
     fireEvent.change(screen.getByLabelText("入力形式"), { target: { value: "time_range" } });
-    fireEvent.change(screen.getByLabelText("丸め単位（分）"), { target: { value: "30" } });
     fireEvent.change(screen.getByLabelText("空き時間の扱い"), { target: { value: "assign_default_job" } });
     fireEvent.change(screen.getByLabelText("既定ジョブ"), { target: { value: "JOB-B" } });
     fireEvent.change(screen.getByLabelText("空き時間の作業内容"), { target: { value: "社内業務" } });
@@ -167,7 +166,6 @@ describe("SettingsPanel zac settings", () => {
         hr_mail_subject_keyword: "[勤怠情報]",
         zac_submit_mode: "assist",
         entry_style: "time_range",
-        time_unit_minutes: 30,
         clip_tolerance_minutes: 15,
         gap_policy: "assign_default_job",
         default_job_code: "JOB-B",
@@ -180,10 +178,12 @@ describe("SettingsPanel zac settings", () => {
 
   it("shows reloaded zac settings", () => {
     const { rerender } = renderPanel();
-    rerender({ ...automationSettings, zac_submit_mode: "auto", time_unit_minutes: 5 });
+    rerender({ ...automationSettings, zac_submit_mode: "auto", clip_tolerance_minutes: 5 });
 
     expect(screen.getByLabelText("実行モード")).toHaveValue("auto");
-    expect(screen.getByLabelText("丸め単位（分）")).toHaveValue("5");
+    expect(screen.getByLabelText("はみ出しの許容値（分）")).toHaveValue(5);
+    // zac の工数は丸めずに入力するため、丸め単位の設定はない
+    expect(screen.queryByLabelText("丸め単位（分）")).not.toBeInTheDocument();
   });
 });
 

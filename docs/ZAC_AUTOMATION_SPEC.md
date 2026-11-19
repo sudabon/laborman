@@ -200,7 +200,7 @@ backend が勤務日ごとに「zac に入力する内容」と「検証結果�
    - `block`（既定）：エラー `UNCOVERED_TIME`
    - `assign_default_job`：設定した既定ジョブ（例：社内業務）に割り当て、警告
 6. **入力行の生成**（設定 `entry_style` に従う。zac の画面仕様が確定したら片方に固定してよい）
-   - `duration`：ジョブごとに時間を集計し、`time_unit_minutes`（既定 15 分）単位に丸める。**丸め後の合計が `W` を単位で切り捨てた値と一致する**よう、最大剰余法で配分する。内容は同じジョブの内容を開始順に「、」で連結し、`description_max_length` で切り詰める。
+   - `duration`：ジョブごとに時間を集計し、**丸めずに**分単位のまま入力する（合計は `W` と一致する。2026-11-19 に 15 分単位の丸めをやめた）。内容は同じジョブの内容を開始順に「、」で連結し、`description_max_length` で切り詰める。
    - `time_range`：タスクを時刻順のまま 1 行ずつ出力する（連続する同一ジョブ・同一内容は結合）。
 7. **検証**（下表）。`error` が 1 件でもあれば登録不可、`warning` があれば `auto` は不可（`dry_run` に降格して通知）。
 
@@ -214,7 +214,7 @@ backend が勤務日ごとに「zac に入力する内容」と「検証結果�
 | `TASK_OUTSIDE_ATTENDANCE` | error / warning | 出退勤の範囲外（許容値以内なら warning ＋クリップ） |
 | `UNCOVERED_TIME` | error / warning | 空き時間あり（`gap_policy` による） |
 | `JOB_UNKNOWN` | error | ジョブマスタに存在しない、または zac 検索文字列が未設定 |
-| `TOTAL_MISMATCH` | error | 丸め後の合計と実働時間が一致しない（配分ロジックの不具合検知用） |
+| `TOTAL_MISMATCH` | error | 入力行の合計と実働時間が一致しない（集計ロジックの不具合検知用） |
 | `BREAK_MISSING` | error | 出退勤の範囲内に休憩が 1 件も記録されていない（zac 登録を中止し、画面と通知で「休憩が記録されていません」と知らせる） |
 | `ALREADY_REGISTERED` | info | `zac_registered_at` が設定済み |
 
@@ -230,9 +230,9 @@ backend が勤務日ごとに「zac に入力する内容」と「検証結果�
   "entry_style": "duration",
   "entries": [
     { "job_code": "JOB-A", "zac_search_text": "A社 保守", "work_category": "開発",
-      "minutes": 300, "description": "設計レビュー、障害調査" },
+      "minutes": 298, "description": "設計レビュー、障害調査" },
     { "job_code": "JOB-B", "zac_search_text": "社内業務", "work_category": "社内",
-      "minutes": 210, "description": "定例MTG、資料作成" }
+      "minutes": 221, "description": "定例MTG、資料作成" }
   ],
   "issues": [
     { "code": "TASK_OUTSIDE_ATTENDANCE", "severity": "warning",
@@ -244,7 +244,7 @@ backend が勤務日ごとに「zac に入力する内容」と「検証結果�
 }
 ```
 
-配分の計算例：クリップ後の JOB-A = 88 + 210 = 298 分、JOB-B = 90 + 131 = 221 分（合計 519 分 = `W`）。目標合計は 519 を 15 分単位で切り捨てた 510 分。各ジョブを切り捨てると 285 + 210 = 495 分で 15 分不足するため、剰余の大きい JOB-A（13 分）に 15 分を足し、JOB-A 300 分・JOB-B 210 分とする。
+集計の計算例：クリップ後の JOB-A = 88 + 210 = 298 分、JOB-B = 90 + 131 = 221 分（合計 519 分 = `W`）。丸めずに JOB-A 298 分（4:58）・JOB-B 221 分（3:41）とする。
 
 ### 4.7 zac 自動登録エージェント（capability: `zac-registration`）
 
@@ -346,7 +346,7 @@ sequenceDiagram
 │  [+ 行を追加]                                                            │
 │  合計 作業 8:41 / 休憩 1:00                                              │
 ├─ zac 登録 ────────────────────────────────────────────────────────────┤
-│  ドラフト: JOB-A 5:00 / JOB-B 3:30（実働 8:39 → 15分単位 8:30）           │
+│  ドラフト: JOB-A 4:58 / JOB-B 3:41（実働 8:39）                           │
 │  ⚠ 1件: 09:00開始のタスクを出勤09:02に切り詰め  [詳細]                    │
 │  最終実行: 10/12 09:21 dry_run_done  📷 スクリーンショット                 │
 └───────────────────────────────────────────────────────────────────────────┘
@@ -364,7 +364,7 @@ sequenceDiagram
 
 #### 設定（`SettingsPanel.tsx`）
 
-- 新セクション「業務明細・zac」：ジョブマスタ管理、既定休憩、`time_unit_minutes`、`gap_policy`・既定ジョブ、`entry_style`、`zac_submit_mode`、人事メールの検索条件（差出人・件名キーワード）。
+- 新セクション「業務明細・zac」：ジョブマスタ管理、既定休憩、`gap_policy`・既定ジョブ、`entry_style`、`zac_submit_mode`、人事メールの検索条件（差出人・件名キーワード）。
 
 ---
 
@@ -489,7 +489,6 @@ erDiagram
 |--------|----|------|------|
 | `zac_submit_mode` | varchar(16) | `'dry_run'` | REQ-Z2 |
 | `entry_style` | varchar(16) | `'duration'` | `duration` / `time_range` |
-| `time_unit_minutes` | int | `15` | 丸め単位 |
 | `clip_tolerance_minutes` | int | `15` | はみ出しの許容値 |
 | `gap_policy` | varchar(32) | `'block'` | `block` / `assign_default_job` |
 | `default_job_code` | varchar(64) NULL | NULL | 空き時間の割当先（FK → `jobs.code`） |
@@ -704,7 +703,7 @@ retention_days = 14
 
 | 対象 | 種類 | 主な観点 |
 |------|------|----------|
-| backend | pytest（既存の SQLite フィクスチャを流用） | タスク・休憩の CRUD、開始/停止の自動終了（REQ-T2・B2）、進行中 1 件制約、重なり 409、`manual` 上書き禁止、ドラフト算出（最大剰余法の丸め・合計一致、クリップ、`gap_policy` 両方、休暇日、24:xx）、`succeeded` で `zac_registered_at` 設定、月一覧の `zac_status` |
+| backend | pytest（既存の SQLite フィクスチャを流用） | タスク・休憩の CRUD、開始/停止の自動終了（REQ-T2・B2）、進行中 1 件制約、重なり 409、`manual` 上書き禁止、ドラフト算出（丸めない集計・合計一致、クリップ、`gap_policy` 両方、休暇日、24:xx）、`succeeded` で `zac_registered_at` 設定、月一覧の `zac_status` |
 | frontend | Vitest / Testing Library | `parseWorkTime`/`formatWorkTime`、`{{tasks}}` 等の展開、タスク開始→休憩→再開の操作、重なりエラーの表示 |
 | agent | pytest | 人事メールパーサ（匿名化フィクスチャ、件名・本文の両方、対象日の不一致、全角数字）、前営業日（祝日・月曜）、ロック、終了コード |
 | agent（画面） | pytest + Playwright | `fixtures/zac/*.html`・OWA 本文のモックに対し Page Object が正しく入力・検出できるか（既存入力検出、保存完了検出、ログイン画面検出）。**実システムには接続しない** |
@@ -750,7 +749,7 @@ OpenSpec の change を 3 本に分ける。各フェーズは単体で価値が
 |---|------|---------------|---------|
 | 1 | 人事メール | **確認済み（2026-10-13）**：件名 `[勤怠情報]YYYY/MM/DD:開始HH:MM/終了HH:MM`、1 通 = 1 勤務日、翌営業日に届き土日祝は届かない、休憩の記載なし、休暇の日は届かない。**未確認**：届く時刻 | §4.5、§7.3 `owa.parser` |
 | 2 | zac の業務報告画面 | **確認済み（2026-10-14、Claude in Chrome）**：URL は `{base_url}/b/daily_report/{YYYY-MM-DD}`。ログインは独自 ID/パスワードで翌日にセッションが切れる（→ キーチェーン方式）。休憩は時刻帯ではなく勤怠欄の**時間数**（通常・22〜24時・24〜29時）。工数は「作業登録」で作業内容 × 案件（JOB 番号）× 売上項目を選び、**所要時間（時間数）**と備考を入れる（→ `entry_style = duration`）。「保存」と「確定」（保存＋内容確定）があり、エージェントは「確定」を押さない。既存入力は作業工数の行、確定済みは「日報確定済」。保存しても画面にメッセージは出ず、保存の通信（`…/daily_reports/{date}/save` → 200）で完了を判定する。詳細は Phase 3 の design D12 | §4.6 `entry_style`、§7.3 `zac.selectors` |
-| 3 | 実働の計算ルール | zac 側で「退社 − 出社 − 休憩」と工数合計の一致が必須か、丸め単位（15 分／30 分）と丸め方向 | §4.6 手順 4〜6 |
+| 3 | 実働の計算ルール | **決定（2026-11-19、ユーザー）**：工数は丸めずに分単位で入力し、合計を実働（退社 − 出社 − 休憩）と一致させる。15 分単位の丸めでは行の時間が明細の合計と合わず、合計も実働より最大 14 分少なくなっていた | §4.6 手順 4〜6 |
 | 4 | 社内規程 | **確認済み（2026-10-15、人事）**：zac への自動入力は可。**未確認**：業務データのローカル保存 | `auto` 運用の可否 |
 | 5 | 現在の業務報告欄の書き方 | 過去分を移行するなら、自由記述のサンプル数日分 | §10 |
 | 6 | OWA のサインイン | 条件付きアクセスで、Playwright 同梱の Chromium（または Chrome／Edge）からサインインできるか | §7.3 `browser.channel`、Phase 2 の成否 |

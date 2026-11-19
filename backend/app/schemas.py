@@ -350,7 +350,6 @@ class AutomationSettingsBase(BaseModel):
     # zac 連携
     zac_submit_mode: ZacSubmitMode = "dry_run"
     entry_style: EntryStyle = "duration"
-    time_unit_minutes: int = Field(default=15, ge=1, le=60)
     clip_tolerance_minutes: int = Field(default=15, ge=0, le=120)
     gap_policy: GapPolicy = "block"
     default_job_code: str | None = Field(default=None, max_length=JOB_CODE_MAX_LENGTH)
@@ -371,13 +370,6 @@ class AutomationSettingsBase(BaseModel):
         if isinstance(value, str):
             value = value.strip()
             return value or None
-        return value
-
-    @field_validator("time_unit_minutes")
-    @classmethod
-    def divides_hour(cls, value: int) -> int:
-        if 60 % value != 0:
-            raise ValueError("丸め単位は 60 の約数（1・5・10・15・30・60 など）にしてください")
         return value
 
     @model_validator(mode="after")

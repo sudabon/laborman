@@ -760,7 +760,6 @@ def read_automation_settings(db: Session) -> AutomationSettings:
         hr_mail_subject_keyword="",
         zac_submit_mode="dry_run",
         entry_style="duration",
-        time_unit_minutes=15,
         clip_tolerance_minutes=15,
         gap_policy="block",
         default_job_code=None,
@@ -809,7 +808,6 @@ def build_report_zac_draft(db: Session, work_date: date) -> ZacDraftRead:
         jobs=jobs,
         settings=DraftSettings(
             entry_style="time_range" if settings.entry_style == "time_range" else "duration",
-            time_unit_minutes=settings.time_unit_minutes,
             clip_tolerance_minutes=settings.clip_tolerance_minutes,
             gap_policy=settings.gap_policy,
             default_job_code=settings.default_job_code,

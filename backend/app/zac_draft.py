@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import TypeVar
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -71,7 +70,6 @@ class SalesItemInfo:
 @dataclass(frozen=True)
 class DraftSettings:
     entry_style: EntryStyle = "duration"
-    time_unit_minutes: int = 15
     clip_tolerance_minutes: int = 15
     gap_policy: str = "block"
     default_job_code: str | None = None
@@ -82,7 +80,6 @@ class DraftSettings:
 
 # 入力行のまとまり：（作業内容, ジョブ ID, 売上項目 ID）
 RowKey = tuple[str, str, str]
-K = TypeVar("K", str, RowKey)
 
 
 @dataclass(frozen=True)
@@ -147,28 +144,6 @@ class WorkTimeFormatter:
 
     def range(self, interval: Interval) -> str:
         return f"{self(interval[0])}–{self(interval[1])}"
-
-
-def allocate_by_largest_remainder(
-    minutes_by_job: dict[K, int], target: int, unit: int
-) -> dict[K, int] | None:
-    """各行を unit 単位に切り捨て、不足分を剰余の大きい順に 1 単位ずつ配分する。
-
-    配分で target に一致させられなければ None（呼び出し側で TOTAL_MISMATCH とする）。
-    同じ剰余は分数の大きい順、次にキー（作業内容・ジョブ ID・売上項目）の順。
-    """
-    floors = {code: minutes // unit * unit for code, minutes in minutes_by_job.items()}
-    deficit = target - sum(floors.values())
-    if deficit < 0 or deficit % unit != 0 or deficit // unit > len(floors):
-        return None
-    order = sorted(
-        minutes_by_job,
-        key=lambda code: (-(minutes_by_job[code] - floors[code]), -minutes_by_job[code], code),
-    )
-    allocated = dict(floors)
-    for code in order[: deficit // unit]:
-        allocated[code] += unit
-    return allocated
 
 
 def join_descriptions(descriptions: Iterable[str], max_length: int) -> str:
@@ -425,27 +400,18 @@ def build_zac_draft(
                 minutes_between(*gap) for gap in gap_assign
             )
             descriptions.setdefault(gap_key, [])
-        unit = settings.time_unit_minutes
-        target = working_minutes // unit * unit
-        allocated = allocate_by_largest_remainder(minutes_by_row, target, unit)
+        # 丸めずに合算する。空き時間・重なりなどのエラーがあると合計が実働と合わないが、その場合は参考値
         has_error = any(entry.severity == "error" for entry in issues)
-        if allocated is None or sum(allocated.values()) != target:
-            # 空き時間・重なりなどのエラーがあると配分が成立しないことがある。その場合は参考値
-            if not has_error:
-                issue(
-                    "TOTAL_MISMATCH",
-                    "error",
-                    f"入力行の合計が実働 {target} 分（{unit} 分単位）と一致しません",
-                )
-            allocated = {key: minutes // unit * unit for key, minutes in minutes_by_row.items()}
+        if sum(minutes_by_row.values()) != working_minutes and not has_error:
+            issue("TOTAL_MISMATCH", "error", f"入力行の合計が実働 {working_minutes} 分と一致しません")
         entries = [
             ZacDraftEntry(
                 **entry_fields(key),
-                minutes=allocated[key],
+                minutes=minutes,
                 description=join_descriptions(descriptions[key], settings.description_max_length),
             )
-            for key in minutes_by_row
-            if allocated[key] > 0
+            for key, minutes in minutes_by_row.items()
+            if minutes > 0
         ]
 
     return finish(

@@ -10,7 +10,7 @@
 
 **Goals:**
 
-- 業務ルール（クリップ・空き時間・丸め・検証）を backend の純粋関数に集約し、pytest で網羅的に検証できるようにする（エージェントは「入力係」に限定）
+- 業務ルール（クリップ・空き時間・集計・検証）を backend の純粋関数に集約し、pytest で網羅的に検証できるようにする（エージェントは「入力係」に限定）
 - zac の画面仕様が未確定でも、セレクタ・URL を設定で与えるだけで動く Page Object にする
 - 誤登録を構造的に起こしにくくする（保存以外の確定操作を Page Object に持たせない、既存入力・error・warning のガード）
 
@@ -32,19 +32,18 @@
 
 **代替案**：フロントエンドでも算出する案は、UI とエージェントの結果が乖離しうるため採らない（UI は API の結果を表示するだけ）。
 
-### D2. `duration` の丸め（最大剰余法）
+### D2. `duration` の集計（丸めない）
 
-1. ジョブごとの分数 `m_j`（クリップ後＋`assign_default_job` の割当）を求める
-2. 目標合計 `T = floor(W / unit) * unit`
-3. `f_j = floor(m_j / unit) * unit`、剰余 `r_j = m_j - f_j`
-4. 不足 `T - Σf_j` を `unit` ずつ、`r_j` の大きい順（同値は `m_j` の大きい順、次にジョブ ID 順）に配分する
-5. `Σ` が `T` と一致しなければ `TOTAL_MISMATCH`（不具合検知用）
+1. 行（作業内容・ジョブ・売上項目）ごとの分数 `m_j`（クリップ後＋`assign_default_job` の割当）を求め、そのまま入力行の時間にする
+2. `Σm_j` が `W` と一致しなければ `TOTAL_MISMATCH`（不具合検知用。ほかの error があるときは重ねない）
 
-`block` で空き時間がある場合は `Σm_j < W` となり配分が成立しないことがあるが、`UNCOVERED_TIME`（error）で登録不可になるため、入力行は参考値として返す。`time_range` では丸めを行わず、クリップ後の時刻をそのまま使う。
+当初は丸め単位（既定 15 分）と最大剰余法で `floor(W / unit) * unit` に合わせていたが、行の時間が業務明細の合計と合わず、合計も実働より最大 14 分少なくなるため、2026-11-19 にユーザーの判断で丸めをやめた（§13-3 の決定）。`time_unit_minutes` の列も削除した。
+
+`block` で空き時間がある場合は `Σm_j < W` となるが、`UNCOVERED_TIME`（error）で登録不可になるため、入力行は参考値として返す。`time_range` では丸めを行わず、クリップ後の時刻をそのまま使う。
 
 ### D3. 設定と実行履歴のテーブル
 
-- `automation_settings` に仕様書 §5.6 の残りの列（`zac_submit_mode`・`entry_style`・`time_unit_minutes`・`clip_tolerance_minutes`・`gap_policy`・`default_job_code`〔FK → `jobs.code`〕・`description_max_length`）を CHECK 制約付きで追加する。`time_unit_minutes` は 1〜60 かつ 60 の約数に限定する。
+- `automation_settings` に仕様書 §5.6 の残りの列（`zac_submit_mode`・`entry_style`・`clip_tolerance_minutes`・`gap_policy`・`default_job_code`〔FK → `jobs.code`〕・`description_max_length`）を CHECK 制約付きで追加する（`time_unit_minutes` も追加したが、丸めをやめた 2026-11-19 に削除）。
 - `zac_sync_runs` は仕様書 §5.5 のとおり（`entries` は `sa.JSON`）。`work_reports.zac_registered_at` を追加する。
 - `POST /api/zac-sync-runs` は `status=running`・`started_at=now` で作成、`PATCH /api/zac-sync-runs/{id}` で `status`・`message`・`entries`・`screenshot_path`・`finished_at` を更新。`succeeded` への更新時に同一トランザクションで対象日の `zac_registered_at = now` を設定する（報告がなければ get-or-create）。
 
@@ -165,7 +164,7 @@ zac は独自 ID/パスワードで、セッションは翌日に切れる。`[z
 - [zac の画面仕様が想定と異なり、入力形式（時間数／時刻）が合わない（§13-2）] → 2026-10-14 の画面確認で所要時間（時間数）と判明。`duration` を既定にする
 - [zac の選択肢の表記が laborman のマスタとずれる（全角・半角、月替わり）] → 完全一致で選び、なければ入力を中止して `failed`。`sync-zac` で zac の表記を取り込み直せる
 - [キーチェーンのパスワードが漏れる] → `security` の出力を変数に保持する時間を最小にし、ログ・例外・実行履歴に含めない。テストでは偽の値を使う
-- [丸めの単位・方向が zac のルールと違う（§13-3）] → 単位は設定で変更可能。方向（切り捨て）が違う場合は D2 の目標合計の計算だけを変えればよいよう、関数を分離しておく
+- [丸めの単位・方向が zac のルールと違う（§13-3）] → 2026-11-19 に丸めをやめ、分単位のまま入力することにした（D2）
 - [自動操作が社内規程に抵触する（§13-4）] → `auto` 運用前に情報システム部門へ確認する。初期値は `dry_run` とし、確認が取れるまで `assist` までに留める
 - [zac の画面変更で誤った欄に入力される] → 既存入力の検知、保存完了表示の確認、`dry_run` のスクリーンショット確認、`warning` 時の自動降格で多重に防ぐ
 - [エージェントが動いていない（Mac のスリープ・未導入）と依頼が `requested` のまま残る] → パネルに依頼日時を表示し、取り消せるようにする。`doctor` で requests 用の launchd の導入有無を確認する
@@ -183,6 +182,6 @@ zac は独自 ID/パスワードで、セッションは翌日に切れる。`[z
 ## Open Questions
 
 - zac の業務報告画面の URL・日付指定・項目・保存完了／既存入力の見え方・ログイン方式（仕様書 §13-2）：設定値（URL・セレクタ）と `entry_style` の既定値の確定に使う
-- 実働と工数合計の一致が zac で必須か、丸めの単位と方向（§13-3）：`time_unit_minutes` の既定値に影響する
+- 実働と工数合計の一致が zac で必須か、丸めの単位と方向（§13-3）：2026-11-19 に解決。丸めずに入力し、合計を実働と一致させる
 - 社内規程上、自動操作と業務データのローカル保存が許されるか（§13-4）：`auto` 運用の可否に影響する（実装範囲は変わらない）。2026-10-15 に人事へ確認し、zac への自動入力は可
 - laborman のジョブ ID と zac の案件の対応（§13-8）：`zac_search_text` で吸収できる想定。別名表が必要なら運用で `zac_search_text` を設定する

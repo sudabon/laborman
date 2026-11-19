@@ -93,7 +93,6 @@ erDiagram
         text hr_mail_subject_keyword "人事メールの件名キーワード"
         varchar(16) zac_submit_mode "dry_run | assist | auto"
         varchar(16) entry_style "duration | time_range"
-        int time_unit_minutes "丸め単位"
         int clip_tolerance_minutes "はみ出しの許容値"
         varchar(32) gap_policy "block | assign_default_job"
         varchar(64) default_job_code FK "jobs.code（null可）"
@@ -263,7 +262,6 @@ erDiagram
 | `hr_mail_subject_keyword` | text | NOT NULL | `''` | 人事メールの件名キーワード（実運用は `[勤怠情報]`。空なら取り込まない） |
 | `zac_submit_mode` | varchar(16) | NOT NULL | `'dry_run'` | laborman-agent の実行モード（`dry_run`・`assist`・`auto`） |
 | `entry_style` | varchar(16) | NOT NULL | `'duration'` | zac の入力形式（`duration`・`time_range`） |
-| `time_unit_minutes` | integer | NOT NULL | `15` | 丸め単位（1〜60 かつ 60 の約数） |
 | `clip_tolerance_minutes` | integer | NOT NULL | `15` | 出退勤からのはみ出しの許容値（分） |
 | `gap_policy` | varchar(32) | NOT NULL | `'block'` | 空き時間の扱い（`block`・`assign_default_job`） |
 | `default_job_code` | varchar(64) | NULL | FK → `jobs.code`（ON UPDATE CASCADE） | 空き時間の割当先 |

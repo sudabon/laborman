@@ -24,7 +24,6 @@ type ZacSettings = Pick<
   AutomationSettings,
   | "zac_submit_mode"
   | "entry_style"
-  | "time_unit_minutes"
   | "clip_tolerance_minutes"
   | "gap_policy"
   | "default_job_code"
@@ -33,7 +32,6 @@ type ZacSettings = Pick<
   | "description_max_length"
 >;
 
-const TIME_UNITS = [1, 5, 10, 15, 30, 60];
 const selectClass =
   "h-10 rounded-md border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
@@ -600,7 +598,6 @@ function pickZacSettings(settings: AutomationSettings): ZacSettings {
   return {
     zac_submit_mode: settings.zac_submit_mode,
     entry_style: settings.entry_style,
-    time_unit_minutes: settings.time_unit_minutes,
     clip_tolerance_minutes: settings.clip_tolerance_minutes,
     gap_policy: settings.gap_policy,
     default_job_code: settings.default_job_code,
@@ -671,21 +668,6 @@ function ZacSection({
           >
             <option value="duration">ジョブごとの時間（duration）</option>
             <option value="time_range">時刻順（time_range）</option>
-          </select>
-        </div>
-        <div className="grid gap-1">
-          <Label htmlFor="time_unit_minutes">丸め単位（分）</Label>
-          <select
-            id="time_unit_minutes"
-            className={selectClass}
-            value={form.time_unit_minutes}
-            onChange={(event) => update("time_unit_minutes", Number(event.target.value))}
-          >
-            {TIME_UNITS.map((unit) => (
-              <option key={unit} value={unit}>
-                {unit}
-              </option>
-            ))}
           </select>
         </div>
         <div className="grid gap-1">

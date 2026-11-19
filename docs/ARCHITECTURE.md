@@ -180,7 +180,7 @@ sequenceDiagram
     FE->>API: 10 秒ごとに実行履歴を取り直して結果を表示
 ```
 
-- **業務ルールは backend に集約** — クリップ・空き時間・丸め（最大剰余法）・検証は `app/zac_draft.py` の純粋関数で算出し、画面とエージェントは同じ `GET zac-draft` の結果を使う。エージェントは「入力係」に徹する。
+- **業務ルールは backend に集約** — クリップ・空き時間・入力行の集計・検証は `app/zac_draft.py` の純粋関数で算出し、画面とエージェントは同じ `GET zac-draft` の結果を使う。エージェントは「入力係」に徹する。
 - **画面からの実行は依頼のキュー経由** — 画面（Docker 内から配信）はホストのコマンドを直接起動できないため、実行履歴に `requested` を記録し、エージェントが条件付き更新（`claim`）で取得したものだけを実行する。
 - **誤登録の防止** — error のある日は保存しない、warning のある日は `auto` を `dry_run` に降格、zac の既存入力は上書きしない、保存完了の表示を確認できたときだけ `succeeded`、「申請」「承認依頼」は操作しない（Page Object に操作自体を持たせない）。
 
@@ -227,7 +227,7 @@ sequenceDiagram
 | `lib/defaultBreak.ts` | 勤務日を表示したとき、平日・休憩 0 件・休暇でなければ既定の休憩を追加する（`ensureDefaultBreak`。祝日は区別しない） |
 | `components/JobCombobox.tsx` | ジョブ選択のコンボボックス。有効なジョブを最近使った順に表示し、コード・表示名でインクリメンタル検索、未登録のジョブ ID をその場で登録 |
 | `components/ReportCalendar.tsx` | 月次カレンダー（react-day-picker）。報告の状態と zac 状態（zac済・要対応・zac未登録の過去平日の強調） |
-| `components/SettingsPanel.tsx` | メール設定フォーム、ジョブマスタ（追加・編集・無効化・ジョブ ID の変更）、既定の休憩、人事メールの検索条件（件名キーワード・差出人）、zac 連携（実行モード・入力形式・丸め単位・許容値・空き時間の扱い・既定ジョブ・内容の最大長） |
+| `components/SettingsPanel.tsx` | メール設定フォーム、ジョブマスタ（追加・編集・無効化・ジョブ ID の変更）、既定の休憩、人事メールの検索条件（件名キーワード・差出人）、zac 連携（実行モード・入力形式・許容値・空き時間の扱い・既定ジョブ・内容の最大長） |
 | `components/MailComposeDialog.tsx` | メール下書きプレビュー、M365／From確認案内、Outlook on the web の新規タブ起動、項目別コピー |
 | `components/ui/` | shadcn-ui 系の共通 UI 部品 |
 | `lib/api.ts` | `fetch` ラッパー。全 API 呼び出しを集約し、非 2xx を `ApiError`（`status`・`conflicts`）に変換 |

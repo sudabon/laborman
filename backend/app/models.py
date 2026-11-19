@@ -264,10 +264,6 @@ class AutomationSettings(Base):
             name="ck_automation_settings_entry_style",
         ),
         CheckConstraint(
-            "time_unit_minutes between 1 and 60 and 60 % time_unit_minutes = 0",
-            name="ck_automation_settings_time_unit_minutes",
-        ),
-        CheckConstraint(
             "clip_tolerance_minutes >= 0",
             name="ck_automation_settings_clip_tolerance_minutes",
         ),
@@ -301,9 +297,6 @@ class AutomationSettings(Base):
     )
     entry_style: Mapped[str] = mapped_column(
         String(16), default="duration", server_default="duration", nullable=False
-    )
-    time_unit_minutes: Mapped[int] = mapped_column(
-        Integer, default=15, server_default="15", nullable=False
     )
     clip_tolerance_minutes: Mapped[int] = mapped_column(
         Integer, default=15, server_default="15", nullable=False

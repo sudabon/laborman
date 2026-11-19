@@ -474,7 +474,6 @@ def test_zac_settings_defaults(client: TestClient) -> None:
         for key in (
             "zac_submit_mode",
             "entry_style",
-            "time_unit_minutes",
             "clip_tolerance_minutes",
             "gap_policy",
             "default_job_code",
@@ -483,7 +482,6 @@ def test_zac_settings_defaults(client: TestClient) -> None:
     } == {
         "zac_submit_mode": "dry_run",
         "entry_style": "duration",
-        "time_unit_minutes": 15,
         "clip_tolerance_minutes": 15,
         "gap_policy": "block",
         "default_job_code": None,
@@ -503,7 +501,6 @@ def test_zac_settings_save_and_reload(client: TestClient, jobs: None) -> None:
         json=zac_settings(
             zac_submit_mode="assist",
             entry_style="time_range",
-            time_unit_minutes=30,
             clip_tolerance_minutes=10,
             gap_policy="assign_default_job",
             default_job_code="JOB-B",
@@ -518,7 +515,7 @@ def test_zac_settings_save_and_reload(client: TestClient, jobs: None) -> None:
     assert current["default_job_code"] == "JOB-B"
     assert current["default_work_kind"] == "社内業務"
     assert current["default_sales_item_id"] == item["id"]
-    assert current["time_unit_minutes"] == 30
+    assert "time_unit_minutes" not in current
 
 
 @pytest.mark.parametrize(
@@ -529,9 +526,6 @@ def test_zac_settings_save_and_reload(client: TestClient, jobs: None) -> None:
         {"gap_policy": "assign_default_job", "default_job_code": "JOB-B"},
         {"default_work_kind": "NOPE"},
         {"default_job_code": "NOPE"},
-        {"time_unit_minutes": 7},
-        {"time_unit_minutes": 0},
-        {"time_unit_minutes": 90},
         {"zac_submit_mode": "submit"},
         {"entry_style": "minutes"},
         {"clip_tolerance_minutes": -1},
